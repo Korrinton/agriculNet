@@ -54,11 +54,46 @@
     </div>
 </div>
 
+{{-- Titular de la explotación (portada del cuaderno de explotación) --}}
+<div class="mt-6">
+    <h3 class="text-sm font-semibold text-gray-700 mb-1 flex items-center gap-2">
+        <svg class="h-4 w-4 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
+        </svg>
+        Titular de la explotación
+    </h3>
+    <p class="text-xs text-gray-400 mb-3">Opcional. Aparece en el cuaderno de explotación.</p>
+
+    <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div>
+            <x-input-label for="titular_nombre" value="Nombre o razón social" />
+            <x-text-input id="titular_nombre" name="titular_nombre" type="text" class="mt-1 block w-full"
+                value="{{ old('titular_nombre', $finca->titular_nombre ?? '') }}" />
+            <x-input-error :messages="$errors->get('titular_nombre')" class="mt-1" />
+        </div>
+        <div>
+            <x-input-label for="titular_nif" value="NIF" />
+            <x-text-input id="titular_nif" name="titular_nif" type="text" class="mt-1 block w-full font-mono uppercase"
+                value="{{ old('titular_nif', $finca->titular_nif ?? '') }}" placeholder="12345678Z" />
+            <x-input-error :messages="$errors->get('titular_nif')" class="mt-1" />
+        </div>
+        <div>
+            <x-input-label for="rea_numero" value="Nº REA" />
+            <x-text-input id="rea_numero" name="rea_numero" type="text" class="mt-1 block w-full font-mono"
+                value="{{ old('rea_numero', $finca->rea_numero ?? '') }}" />
+            <p class="mt-0.5 text-xs text-gray-400">Registro de Explotaciones Agrícolas</p>
+            <x-input-error :messages="$errors->get('rea_numero')" class="mt-1" />
+        </div>
+    </div>
+</div>
+
 <script>
-function syncProvincia(select) {
-    document.getElementById('provincia_cod').value = select.value;
-}
-document.getElementById('provincia_cod').addEventListener('input', function() {
-    document.getElementById('provincia_nombre').value = this.value;
-});
+(function () {
+    window.syncProvincia = function (select) {
+        document.getElementById('provincia_cod').value = select.value;
+    };
+    document.getElementById('provincia_cod').addEventListener('input', function () {
+        document.getElementById('provincia_nombre').value = this.value;
+    });
+})();
 </script>

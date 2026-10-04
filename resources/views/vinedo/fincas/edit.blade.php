@@ -44,6 +44,44 @@
                     </div>
                 </form>
             </div>
+
+            {{-- Parcelas: el uso, la variedad y la superficie se editan en cada parcela --}}
+            <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+                <div class="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
+                    <div>
+                        <h3 class="text-sm font-semibold text-gray-700">Parcelas</h3>
+                        <p class="text-xs text-gray-400 mt-0.5">El uso (tipo de cultivo), la variedad y la superficie se cambian en cada parcela.</p>
+                    </div>
+                    <a href="{{ route('vinedo.parcelas.create', $finca) }}" wire:navigate
+                        class="shrink-0 text-xs text-green-600 hover:text-green-800 font-medium">+ Añadir parcela</a>
+                </div>
+
+                @forelse($finca->parcelas as $parcela)
+                    <div class="px-6 py-3 flex items-center justify-between gap-4 border-b border-gray-50 last:border-b-0">
+                        <div class="min-w-0">
+                            <p class="text-sm font-medium text-gray-800 truncate">
+                                @if($parcela->poligono && $parcela->parcela_sigpac)
+                                    Pol. {{ $parcela->poligono }} · Par. {{ $parcela->parcela_sigpac }}
+                                    @if($parcela->recinto) · Rec. {{ $parcela->recinto }} @endif
+                                @else
+                                    {{ $parcela->nombre }}
+                                @endif
+                            </p>
+                            <p class="text-xs text-gray-500 mt-0.5 truncate">
+                                <span class="font-medium text-gray-700">{{ $parcela->uso ?? 'Sin uso' }}</span>
+                                · {{ $parcela->variedad?->nombre ?? 'Sin variedad' }}
+                                · {{ number_format($parcela->superficie_ha, 2, ',', '.') }} ha
+                            </p>
+                        </div>
+                        <a href="{{ route('vinedo.parcelas.edit', $parcela) }}" wire:navigate
+                            class="shrink-0 px-3 py-1.5 text-xs font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition">
+                            Editar parcela
+                        </a>
+                    </div>
+                @empty
+                    <p class="px-6 py-6 text-sm text-gray-400 text-center">Esta finca no tiene parcelas.</p>
+                @endforelse
+            </div>
         </div>
     </div>
 </x-app-layout>

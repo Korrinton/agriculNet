@@ -3,10 +3,15 @@
 namespace App\Modules\Vinedo\Http\Controllers\Web;
 
 use App\Http\Controllers\Controller;
+use App\Modules\Meteorologia\Services\EstacionesCercanas;
+use App\Modules\Meteorologia\Services\ImportadorMeteorologico;
 use App\Modules\Vinedo\Models\Finca;
+use App\Modules\Vinedo\Models\Parcela;
 use App\Modules\Vinedo\Models\Variedad;
+use App\Modules\Vinedo\Rules\VariedadDelCultivo;
 use App\Modules\Vinedo\Services\SigpacService;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 
 class FincaWebController extends Controller
 {
@@ -14,14 +19,16 @@ class FincaWebController extends Controller
         'provincia_cod' => 'required|integer|min:1|max:52',
         'municipio_cod' => 'required|integer|min:1|max:999',
         'paraje'        => 'nullable|string|max:255',
+        // Titular de la explotación, para el cuaderno de explotación
+        'titular_nombre' => 'nullable|string|max:255',
+        'titular_nif'    => 'nullable|string|max:20',
+        'rea_numero'     => 'nullable|string|max:50',
     ];
 
     private array $parcelaRules = [
         'parcelas'                       => 'required|array|min:1',
         'parcelas.*.nombre'              => 'nullable|string|max:255',
-        'parcelas.*.uso'                 => 'required|string|max:100',
         'parcelas.*.superficie_ha'       => 'required|numeric|min:0.0001',
-        'parcelas.*.variedad_id'         => 'nullable|integer|exists:variedades,id',
         'parcelas.*.año_plantacion'      => 'nullable|integer|min:1900|max:2099',
         'parcelas.*.sistema_conduccion'  => 'nullable|string|max:100',
         'parcelas.*.agregado'            => 'nullable|integer|min:0|max:99',
@@ -52,13 +59,26 @@ class FincaWebController extends Controller
 
     public function store(Request $request)
     {
-        $validated = $request->validate(array_merge($this->fincaRules, $this->parcelaRules));
+        // Cada parcela valida su variedad contra el cultivo de su propio uso
+        $porParcela = [];
+        foreach (array_keys((array) $request->input('parcelas', [])) as $i) {
+            $porParcela["parcelas.{$i}.uso"] = ['required', Rule::in(Parcela::usos())];
+            $porParcela["parcelas.{$i}.variedad_id"] = [
+                'nullable', 'integer', 'exists:variedades,id',
+                new VariedadDelCultivo($request->input("parcelas.{$i}.uso")),
+            ];
+        }
+
+        $validated = $request->validate(array_merge($this->fincaRules, $this->parcelaRules, $porParcela));
 
         $finca = Finca::create([
             'user_id'       => auth()->id(),
             'provincia_cod' => $validated['provincia_cod'],
             'municipio_cod' => $validated['municipio_cod'],
             'paraje'        => $validated['paraje'] ?? null,
+            'titular_nombre' => $validated['titular_nombre'] ?? null,
+            'titular_nif'    => $validated['titular_nif'] ?? null,
+            'rea_numero'     => $validated['rea_numero'] ?? null,
         ]);
 
         foreach ($validated['parcelas'] as $i => $p) {
@@ -80,10 +100,10 @@ class FincaWebController extends Controller
             ->with('success', 'Finca y parcelas registradas correctamente.');
     }
 
-    public function show(Finca $finca, SigpacService $sigpac)
+    public function show(Finca $finca, SigpacService $sigpac, ImportadorMeteorologico $meteo, EstacionesCercanas $cercanas)
     {
         $this->authorize('view', $finca);
-        $finca->load(['parcelas.variedad', 'parcelas.finca']);
+        $finca->load(['parcelas.variedad', 'parcelas.finca', 'estacion']);
 
         $parcelasConSigpac = $finca->parcelas
             ->filter(fn($p) => $sigpac->tieneReferenciaSigpac($p))
@@ -94,15 +114,27 @@ class FincaWebController extends Controller
                 'externoUrl' => $sigpac->getSigpacUrl($p),
             ])->values();
 
+        $datosMeteoro = $finca->estacion
+            ? $meteo->ultimosDias($finca->estacion, 30)
+            : collect();
+
+        // La primera visita ubica la finca con SIGPAC; después queda guardada
+        $cercanas->ubicar($finca);
+        $estacionesAemet = $finca->estacion ? collect() : $cercanas->para($finca);
+
         return view('vinedo.fincas.show', [
             'finca'             => $finca,
             'parcelasConSigpac' => $parcelasConSigpac,
+            'datosMeteoro'      => $datosMeteoro,
+            'estacionesAemet'   => $estacionesAemet,
+            'distanciaEstacion' => $cercanas->distanciaA($finca, $finca->estacion),
         ]);
     }
 
     public function edit(Finca $finca)
     {
         $this->authorize('update', $finca);
+        $finca->load('parcelas.variedad');
 
         return view('vinedo.fincas.edit', [
             'finca'      => $finca,

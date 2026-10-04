@@ -1,4 +1,4 @@
-<div class="space-y-6">
+<div class="space-y-6" data-parcela-form>
 
     {{-- Referencia SIGPAC --}}
     <div>
@@ -55,14 +55,14 @@
         <h3 class="text-sm font-semibold text-gray-700 mb-3">Datos de la parcela</h3>
 
         @php
-            $usos = ['Secano','Viña en espaldera','Viña en vaso','Olivar','Pistachos'];
+            $usos = \App\Modules\Vinedo\Models\Parcela::usos();
         @endphp
 
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
 
             <div>
                 <x-input-label for="uso" value="Uso *" />
-                <select id="uso" name="uso" required
+                <select id="uso" name="uso" required data-uso
                     class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500 text-sm">
                     <option value="">Selecciona...</option>
                     @foreach($usos as $u)
@@ -85,15 +85,14 @@
             </div>
 
             <div>
-                <x-input-label for="variedad_id" value="Variedad" />
-                <select id="variedad_id" name="variedad_id"
+                <x-input-label for="variedad_id" value="Variedad" data-variedad-label />
+                <select id="variedad_id" name="variedad_id" data-variedad data-vacio="Sin especificar"
                     class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500 text-sm">
                     <option value="">Sin variedad especificada</option>
                     @foreach($variedades as $variedad)
                         <option value="{{ $variedad->id }}"
                             {{ old('variedad_id', $parcela->variedad_id ?? '') == $variedad->id ? 'selected' : '' }}>
-                            {{ $variedad->nombre }}
-                            @if($variedad->tipo) ({{ $variedad->tipo }}) @endif
+                            {{ $variedad->etiqueta }}
                         </option>
                     @endforeach
                 </select>
@@ -121,3 +120,5 @@
     </div>
 
 </div>
+
+@include('vinedo.parcelas._variedades_por_uso')

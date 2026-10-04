@@ -11,7 +11,7 @@
     </x-slot>
 
     @php
-        $usos = ['Secano','Viña en espaldera','Viña en vaso','Olivar','Pistachos'];
+        $usos = \App\Modules\Vinedo\Models\Parcela::usos();
         $oldParcelas = old('parcelas', [['parcela_sigpac'=>'','uso'=>'','superficie_ha'=>'']]);
     @endphp
 
@@ -46,7 +46,7 @@
 
                     <div id="parcelas-list" class="space-y-4">
                         @foreach($oldParcelas as $idx => $p)
-                        <div class="parcela-card border border-gray-200 rounded-lg p-4 relative">
+                        <div class="parcela-card border border-gray-200 rounded-lg p-4 relative" data-parcela-form>
                             <button type="button" onclick="removeParcela(this)"
                                 class="remove-btn absolute top-3 right-3 text-gray-300 hover:text-red-500 transition"
                                 title="Eliminar parcela">
@@ -91,7 +91,7 @@
                             </div>
                             <div class="mb-3">
                                 <x-input-label value="Uso *" />
-                                <select name="parcelas[{{ $idx }}][uso]" required
+                                <select name="parcelas[{{ $idx }}][uso]" required data-uso
                                     class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500 text-sm">
                                     <option value="">Selecciona...</option>
                                     @foreach($usos as $u)
@@ -116,13 +116,13 @@
                                             value="{{ $p['agregado'] ?? '0' }}" />
                                     </div>
                                     <div>
-                                        <label class="block text-xs font-medium text-gray-600">Variedad</label>
-                                        <select name="parcelas[{{ $idx }}][variedad_id]"
+                                        <label class="block text-xs font-medium text-gray-600" data-variedad-label>Variedad</label>
+                                        <select name="parcelas[{{ $idx }}][variedad_id]" data-variedad
                                             class="mt-1 block w-full border-gray-300 rounded-md shadow-sm text-sm">
                                             <option value="">—</option>
                                             @foreach($variedades as $v)
                                                 <option value="{{ $v->id }}" {{ ($p['variedad_id'] ?? '') == $v->id ? 'selected' : '' }}>
-                                                    {{ $v->nombre }}
+                                                    {{ $v->etiqueta }}
                                                 </option>
                                             @endforeach
                                         </select>
@@ -167,7 +167,7 @@
 
     {{-- Template para parcelas añadidas dinámicamente --}}
     <template id="parcela-template">
-        <div class="parcela-card border border-gray-200 rounded-lg p-4 relative">
+        <div class="parcela-card border border-gray-200 rounded-lg p-4 relative" data-parcela-form>
             <button type="button" onclick="removeParcela(this)"
                 class="remove-btn absolute top-3 right-3 text-gray-300 hover:text-red-500 transition"
                 title="Eliminar parcela">
@@ -204,7 +204,7 @@
             </div>
             <div class="mb-3">
                 <label class="block text-sm font-medium text-gray-700">Uso *</label>
-                <select name="parcelas[IDX][uso]" required
+                <select name="parcelas[IDX][uso]" required data-uso
                     class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500 text-sm">
                     <option value="">Selecciona...</option>
                     @foreach($usos as $u)
@@ -226,12 +226,12 @@
                             class="mt-1 block w-full border-gray-300 rounded-md shadow-sm text-sm font-mono" />
                     </div>
                     <div>
-                        <label class="block text-xs font-medium text-gray-600">Variedad</label>
-                        <select name="parcelas[IDX][variedad_id]"
+                        <label class="block text-xs font-medium text-gray-600" data-variedad-label>Variedad</label>
+                        <select name="parcelas[IDX][variedad_id]" data-variedad
                             class="mt-1 block w-full border-gray-300 rounded-md shadow-sm text-sm">
                             <option value="">—</option>
                             @foreach($variedades as $v)
-                                <option value="{{ $v->id }}">{{ $v->nombre }}</option>
+                                <option value="{{ $v->id }}">{{ $v->etiqueta }}</option>
                             @endforeach
                         </select>
                     </div>
@@ -251,6 +251,7 @@
     </template>
 
     <script>
+    (function () {
         let parcelaIdx = {{ count($oldParcelas) }};
 
         function updateUI() {
@@ -265,24 +266,29 @@
             document.getElementById('parcelas-count-label').textContent = n + (n === 1 ? ' parcela' : ' parcelas');
         }
 
-        function addParcela() {
+        window.addParcela = function () {
             const tpl = document.getElementById('parcela-template').content.cloneNode(true);
             tpl.querySelectorAll('[name]').forEach(el => {
                 el.name = el.name.replace(/IDX/g, parcelaIdx);
             });
-            document.getElementById('parcelas-list').appendChild(tpl);
+            const lista = document.getElementById('parcelas-list');
+            lista.appendChild(tpl);
+            window.filtrarVariedades?.(lista.lastElementChild);
             parcelaIdx++;
             updateUI();
-        }
+        };
 
-        function removeParcela(btn) {
+        window.removeParcela = function (btn) {
             const cards = document.querySelectorAll('#parcelas-list .parcela-card');
             if (cards.length > 1) {
                 btn.closest('.parcela-card').remove();
                 updateUI();
             }
-        }
+        };
 
         updateUI();
+    })();
     </script>
+
+    @include('vinedo.parcelas._variedades_por_uso')
 </x-app-layout>

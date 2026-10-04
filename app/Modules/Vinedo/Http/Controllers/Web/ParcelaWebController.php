@@ -6,15 +6,24 @@ use App\Http\Controllers\Controller;
 use App\Modules\Vinedo\Models\Finca;
 use App\Modules\Vinedo\Models\Parcela;
 use App\Modules\Vinedo\Models\Variedad;
+use App\Modules\Vinedo\Services\SigpacService;
+use App\Modules\Vinedo\Rules\VariedadDelCultivo;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 
 class ParcelaWebController extends Controller
 {
+    private function rules(Request $request): array
+    {
+        return array_merge($this->rules, [
+            'uso'         => ['required', Rule::in(Parcela::usos())],
+            'variedad_id' => ['nullable', 'integer', 'exists:variedades,id', new VariedadDelCultivo($request->input('uso'))],
+        ]);
+    }
+
     private array $rules = [
         'nombre'             => 'nullable|string|max:255',
-        'uso'                => 'required|string|max:100',
         'superficie_ha'      => 'required|numeric|min:0.0001',
-        'variedad_id'        => 'nullable|integer|exists:variedades,id',
         'año_plantacion'     => 'nullable|integer|min:1900|max:2099',
         'sistema_conduccion' => 'nullable|string|max:100',
         'agregado'           => 'nullable|integer|min:0|max:99',
@@ -22,6 +31,30 @@ class ParcelaWebController extends Controller
         'parcela_sigpac'     => 'nullable|integer|min:1',
         'recinto'            => 'nullable|integer|min:1',
     ];
+
+    public function show(Parcela $parcela, SigpacService $sigpac)
+    {
+        $this->authorize('update', $parcela->finca);
+
+        $parcela->load([
+            'finca',
+            'variedad',
+            'tratamientos' => fn($q) => $q->with('producto')->latest('fecha')->limit(5),
+            'costes'       => fn($q) => $q->with('categoria')->latest('fecha')->limit(5),
+            'registrosFenologicos' => fn($q) => $q->with('estado')->latest('fecha_observacion')->limit(5),
+            'alertas'      => fn($q) => $q->where('leida', false)->latest()->limit(5),
+        ]);
+
+        $sigpacData = null;
+        if ($sigpac->tieneReferenciaSigpac($parcela)) {
+            $sigpacData = [
+                'externoUrl' => $sigpac->getSigpacUrl($parcela),
+                'apiUrl'     => route('vinedo.parcelas.sigpac', $parcela),
+            ];
+        }
+
+        return view('vinedo.parcelas.show', compact('parcela', 'sigpacData'));
+    }
 
     public function create(Finca $finca)
     {
@@ -37,7 +70,7 @@ class ParcelaWebController extends Controller
     {
         $this->authorize('update', $finca);
 
-        $validated = $request->validate($this->rules);
+        $validated = $request->validate($this->rules($request));
         $validated['finca_id'] = $finca->id;
         $validated['agregado'] = $validated['agregado'] ?? 0;
         $validated['nombre'] = ($validated['nombre'] ?? null)
@@ -64,7 +97,7 @@ class ParcelaWebController extends Controller
     {
         $this->authorize('update', $parcela->finca);
 
-        $validated = $request->validate($this->rules);
+        $validated = $request->validate($this->rules($request));
         $validated['agregado'] = $validated['agregado'] ?? 0;
         $validated['nombre'] = ($validated['nombre'] ?? null)
             ?: ($validated['parcela_sigpac'] ?? null ? 'Parcela ' . $validated['parcela_sigpac'] : ($parcela->nombre ?: 'Parcela'));

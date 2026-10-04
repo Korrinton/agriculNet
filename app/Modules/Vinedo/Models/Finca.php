@@ -3,6 +3,7 @@
 namespace App\Modules\Vinedo\Models;
 
 use App\Models\User;
+use App\Modules\Meteorologia\Models\EstacionMeteorologica;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -14,12 +15,46 @@ class Finca extends Model
         'provincia_cod',
         'municipio_cod',
         'paraje',
+        'estacion_meteorologica_id',
+        'latitud',
+        'longitud',
+        'coordenadas_origen',
+        'titular_nombre',
+        'titular_nif',
+        'rea_numero',
     ];
 
     protected $casts = [
         'provincia_cod' => 'integer',
         'municipio_cod' => 'integer',
+        'latitud'       => 'float',
+        'longitud'      => 'float',
     ];
+
+    protected static function booted(): void
+    {
+        // Si cambia el municipio, la ubicación calculada deja de valer
+        static::updating(function (Finca $finca) {
+            if ($finca->isDirty(['provincia_cod', 'municipio_cod']) && !$finca->isDirty(['latitud', 'longitud'])) {
+                $finca->latitud = $finca->longitud = $finca->coordenadas_origen = null;
+            }
+        });
+    }
+
+    public function setTitularNifAttribute(?string $valor): void
+    {
+        $this->attributes['titular_nif'] = $valor !== null ? strtoupper(str_replace([' ', '-'], '', trim($valor))) : null;
+    }
+
+    public function tieneCoordenadas(): bool
+    {
+        return $this->latitud !== null && $this->longitud !== null;
+    }
+
+    public function olvidarCoordenadas(): void
+    {
+        static::whereKey($this->getKey())->update(['latitud' => null, 'longitud' => null, 'coordenadas_origen' => null]);
+    }
 
     private const PROVINCIAS = [
         1  => 'Álava',         2  => 'Albacete',    3  => 'Alicante',
@@ -51,9 +86,24 @@ class Finca extends Model
         return self::PROVINCIAS;
     }
 
+    /** Código INE de municipio de 5 dígitos (PPMMM) que usa AEMET para sus predicciones. */
+    public function getCodigoIneAttribute(): ?string
+    {
+        if (!$this->provincia_cod || !$this->municipio_cod) {
+            return null;
+        }
+
+        return sprintf('%02d%03d', $this->provincia_cod, $this->municipio_cod);
+    }
+
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
+    }
+
+    public function estacion(): BelongsTo
+    {
+        return $this->belongsTo(EstacionMeteorologica::class, 'estacion_meteorologica_id');
     }
 
     public function parcelas(): HasMany

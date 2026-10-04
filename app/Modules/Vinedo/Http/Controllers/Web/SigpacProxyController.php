@@ -13,6 +13,7 @@ class SigpacProxyController extends Controller
     {
         $this->authorize('view', $parcela->finca);
 
+        // SigpacService cachea la geometría por referencia SIGPAC
         $geojson = $sigpac->getRecintoGeoJson($parcela);
 
         if (! $geojson) {

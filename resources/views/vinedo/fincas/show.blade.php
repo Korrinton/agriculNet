@@ -38,6 +38,12 @@
                 </div>
             @endif
 
+            @if(session('error'))
+                <div class="p-4 bg-red-50 border border-red-200 text-red-700 rounded-lg">
+                    {{ session('error') }}
+                </div>
+            @endif
+
             <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
 
                 {{-- Columna izquierda: ficha + parcelas --}}
@@ -132,8 +138,10 @@
                                                         SIGPAC ↗
                                                     </a>
                                                 @endif
+                                                <a href="{{ route('vinedo.parcelas.show', $parcela) }}" wire:navigate
+                                                    class="text-xs text-gray-600 hover:text-gray-900 font-medium">Ver</a>
                                                 <a href="{{ route('vinedo.parcelas.edit', $parcela) }}" wire:navigate
-                                                    class="text-xs text-gray-400 hover:text-gray-700">Editar</a>
+                                                    class="px-2 py-1 text-xs font-medium text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200 transition">Editar parcela</a>
                                             </div>
                                         </div>
                                     </div>
@@ -144,8 +152,8 @@
 
                 </div>
 
-                {{-- Columna derecha: mapa SIGPAC --}}
-                <div class="lg:col-span-2">
+                {{-- Columna derecha: mapa SIGPAC + meteorología --}}
+                <div class="lg:col-span-2 space-y-6">
                     <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
                         <div class="p-4 border-b border-gray-100 flex items-center justify-between">
                             <div class="flex items-center gap-2">
@@ -179,17 +187,265 @@
                             </div>
                         @endif
                     </div>
+
+                    {{-- Sección Meteorología --}}
+                    <div class="bg-white rounded-xl shadow-sm border border-gray-100">
+
+                        {{-- Cabecera con estado de la estación vinculada --}}
+                        <div class="px-4 py-3 border-b border-gray-100">
+                            <div class="flex items-center justify-between">
+                                <h3 class="font-semibold text-gray-800 text-sm">Meteorología · últimos 30 días</h3>
+                                <div class="flex items-center gap-2">
+                                    @if($finca->estacion)
+                                        {{-- Importar desde AEMET --}}
+                                        @if($finca->estacion->fuente === 'aemet')
+                                            <form method="POST" action="{{ route('meteorologia.datos.importar', $finca) }}">
+                                                @csrf
+                                                <button type="submit"
+                                                    class="inline-flex items-center gap-1 text-xs text-blue-600 hover:text-blue-800 font-medium">
+                                                    <svg class="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
+                                                    </svg>
+                                                    Importar AEMET
+                                                </button>
+                                            </form>
+                                        @endif
+                                        {{-- Añadir manual (los datos AEMET son compartidos y no se editan) --}}
+                                        @unless($finca->estacion->fuente === 'aemet')
+                                            <button onclick="document.getElementById('form-meteo').classList.toggle('hidden')"
+                                                class="inline-flex items-center gap-1 text-xs text-green-600 hover:text-green-800 font-medium">
+                                                <svg class="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+                                                </svg>
+                                                Manual
+                                            </button>
+                                        @endunless
+                                    @endif
+                                </div>
+                            </div>
+
+                            {{-- Estación vinculada --}}
+                            @if($finca->estacion)
+                                <div class="mt-2 flex items-center justify-between">
+                                    <div class="flex items-center gap-2">
+                                        <span class="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full
+                                            {{ $finca->estacion->fuente === 'aemet' ? 'bg-blue-50 text-blue-700' : 'bg-gray-100 text-gray-600' }}">
+                                            {{ $finca->estacion->fuente === 'aemet' ? 'AEMET' : 'Manual' }}
+                                        </span>
+                                        <span class="text-xs text-gray-600">{{ $finca->estacion->nombre }}</span>
+                                        @if($finca->estacion->codigo_externo)
+                                            <span class="text-xs text-gray-400 font-mono">{{ $finca->estacion->codigo_externo }}</span>
+                                        @endif
+                                        @if($distanciaEstacion !== null)
+                                            <span class="text-xs text-gray-400">· a {{ number_format($distanciaEstacion, 0, ',', '.') }} km</span>
+                                        @endif
+                                    </div>
+                                    <form method="POST" action="{{ route('meteorologia.datos.desvincular', $finca) }}"
+                                        onsubmit="return confirm('¿Desvincular la estación?')">
+                                        @csrf
+                                        @method('DELETE')
+                                        <button type="submit" class="text-xs text-gray-400 hover:text-red-500">Desvincular</button>
+                                    </form>
+                                </div>
+                            @else
+                                {{-- Sin estación: mostrar selector AEMET o aviso --}}
+                                @if($estacionesAemet->isNotEmpty())
+                                    <form method="POST" action="{{ route('meteorologia.datos.vincular', $finca) }}"
+                                        class="mt-2 flex items-center gap-2">
+                                        @csrf
+                                        @php $porDistancia = $estacionesAemet->first()?->distancia_km !== null; @endphp
+                                        <select name="estacion_id" required
+                                            class="flex-1 min-w-0 text-xs border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500">
+                                            <option value="">
+                                                {{ $porDistancia ? 'Selecciona estación AEMET (más cercanas primero)…' : "Selecciona estación AEMET ({$finca->provincia_nombre})…" }}
+                                            </option>
+                                            @foreach($estacionesAemet as $est)
+                                                <option value="{{ $est->id }}">
+                                                    @if($porDistancia)
+                                                        {{ number_format($est->distancia_km, 0, ',', '.') }} km · {{ $est->nombre }}
+                                                        @if((int) $est->provincia_cod !== $finca->provincia_cod)
+                                                            ({{ \App\Modules\Vinedo\Models\Finca::getProvincias()[$est->provincia_cod] ?? 'otra provincia' }})
+                                                        @endif
+                                                    @else
+                                                        {{ $est->nombre }} ({{ $est->codigo_externo }})
+                                                    @endif
+                                                </option>
+                                            @endforeach
+                                        </select>
+                                        <button type="submit"
+                                            class="px-3 py-1.5 text-xs text-white bg-blue-600 rounded-lg hover:bg-blue-700 whitespace-nowrap">
+                                            Vincular
+                                        </button>
+                                    </form>
+                                    <p class="mt-1.5 text-[11px] text-gray-400">
+                                        @if($porDistancia)
+                                            Distancias desde {{ $finca->coordenadas_origen === 'parcela' ? 'la ubicación SIGPAC de sus parcelas' : 'el polígono catastral de sus parcelas (aproximada)' }}.
+                                        @else
+                                            No se ha podido ubicar la finca en SIGPAC: revisa la referencia de sus parcelas para ver las estaciones más cercanas.
+                                        @endif
+                                    </p>
+                                @else
+                                    <p class="mt-2 text-xs text-gray-400">
+                                        Sin estaciones AEMET disponibles para {{ $finca->provincia_nombre }}.
+                                        Ejecuta <code class="font-mono bg-gray-100 px-1 rounded">php artisan aemet:importar-estaciones</code> para cargarlas.
+                                    </p>
+                                    <div class="mt-2">
+                                        <button onclick="document.getElementById('form-meteo').classList.toggle('hidden')"
+                                            class="text-xs text-green-600 hover:text-green-800 font-medium">
+                                            + Añadir dato manual
+                                        </button>
+                                    </div>
+                                @endif
+                            @endif
+                        </div>
+
+                        {{-- Formulario entrada manual (colapsable) --}}
+                        <div id="form-meteo" class="hidden border-b border-gray-100 p-4 bg-gray-50">
+                            <p class="text-xs text-gray-500 mb-3 font-medium">Entrada manual de dato diario</p>
+                            <form method="POST" action="{{ route('meteorologia.datos.store', $finca) }}">
+                                @csrf
+                                <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+                                    <div class="col-span-2 sm:col-span-1">
+                                        <label class="block text-xs text-gray-500 mb-1">Fecha</label>
+                                        <input type="date" name="fecha" required
+                                            value="{{ old('fecha', now()->toDateString()) }}"
+                                            max="{{ now()->toDateString() }}"
+                                            class="w-full text-sm border-gray-300 rounded-lg focus:ring-green-500 focus:border-green-500">
+                                    </div>
+                                    <div>
+                                        <label class="block text-xs text-gray-500 mb-1">T. Máx (°C)</label>
+                                        <input type="number" name="temp_max" step="0.1" required value="{{ old('temp_max') }}"
+                                            class="w-full text-sm border-gray-300 rounded-lg focus:ring-green-500 focus:border-green-500">
+                                    </div>
+                                    <div>
+                                        <label class="block text-xs text-gray-500 mb-1">T. Mín (°C)</label>
+                                        <input type="number" name="temp_min" step="0.1" required value="{{ old('temp_min') }}"
+                                            class="w-full text-sm border-gray-300 rounded-lg focus:ring-green-500 focus:border-green-500">
+                                    </div>
+                                    <div>
+                                        <label class="block text-xs text-gray-500 mb-1">Lluvia (mm)</label>
+                                        <input type="number" name="precipitacion_mm" step="0.1" min="0" value="{{ old('precipitacion_mm', 0) }}"
+                                            class="w-full text-sm border-gray-300 rounded-lg focus:ring-green-500 focus:border-green-500">
+                                    </div>
+                                    <div>
+                                        <label class="block text-xs text-gray-500 mb-1">Humedad (%)</label>
+                                        <input type="number" name="humedad_pct" min="0" max="100" value="{{ old('humedad_pct') }}"
+                                            class="w-full text-sm border-gray-300 rounded-lg focus:ring-green-500 focus:border-green-500">
+                                    </div>
+                                    <div>
+                                        <label class="block text-xs text-gray-500 mb-1">Viento (km/h)</label>
+                                        <input type="number" name="viento_kmh" step="0.1" min="0" value="{{ old('viento_kmh') }}"
+                                            class="w-full text-sm border-gray-300 rounded-lg focus:ring-green-500 focus:border-green-500">
+                                    </div>
+                                </div>
+                                @error('temp_min') <p class="mt-2 text-xs text-red-600">{{ $message }}</p> @enderror
+                                <div class="mt-3 flex justify-end gap-2">
+                                    <button type="button" onclick="document.getElementById('form-meteo').classList.add('hidden')"
+                                        class="px-3 py-1.5 text-xs text-gray-600 bg-white border border-gray-200 rounded-lg hover:bg-gray-50">
+                                        Cancelar
+                                    </button>
+                                    <button type="submit"
+                                        class="px-3 py-1.5 text-xs text-white bg-green-600 rounded-lg hover:bg-green-700">
+                                        Guardar
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+
+                        {{-- Tabla de datos --}}
+                        @if($datosMeteoro->isEmpty())
+                            <div class="p-8 text-center">
+                                <p class="text-gray-400 text-sm">Sin datos meteorológicos para los últimos 30 días.</p>
+                                @if($finca->estacion?->fuente === 'aemet')
+                                    <p class="text-xs text-gray-400 mt-1">Pulsa «Importar AEMET» para descargar los datos de la estación.</p>
+                                @endif
+                            </div>
+                        @else
+                            <div class="overflow-x-auto">
+                                <table class="w-full text-xs">
+                                    <thead>
+                                        <tr class="text-gray-400 border-b border-gray-100">
+                                            <th class="px-4 py-2 text-left font-medium">Fecha</th>
+                                            <th class="px-3 py-2 text-right font-medium">T. Máx</th>
+                                            <th class="px-3 py-2 text-right font-medium">T. Mín</th>
+                                            <th class="px-3 py-2 text-right font-medium">GDD</th>
+                                            <th class="px-3 py-2 text-right font-medium">Lluvia</th>
+                                            <th class="px-3 py-2 text-right font-medium">Hum.</th>
+                                            <th class="px-3 py-2 text-right font-medium">Viento</th>
+                                            <th class="px-2 py-2"></th>
+                                        </tr>
+                                    </thead>
+                                    <tbody class="divide-y divide-gray-50">
+                                        @foreach($datosMeteoro->sortByDesc('fecha') as $dato)
+                                            @php $gdd = max(0, (($dato->temp_max + $dato->temp_min) / 2) - 10); @endphp
+                                            <tr class="hover:bg-gray-50 transition">
+                                                <td class="px-4 py-2 text-gray-700 font-medium">{{ $dato->fecha->format('d/m/Y') }}</td>
+                                                <td class="px-3 py-2 text-right text-red-600">{{ number_format($dato->temp_max, 1) }}°</td>
+                                                <td class="px-3 py-2 text-right text-blue-600">{{ number_format($dato->temp_min, 1) }}°</td>
+                                                <td class="px-3 py-2 text-right text-amber-600 font-medium">{{ number_format($gdd, 1) }}</td>
+                                                <td class="px-3 py-2 text-right text-gray-600">
+                                                    {{ $dato->precipitacion_mm !== null ? number_format($dato->precipitacion_mm, 1) . ' mm' : '—' }}
+                                                </td>
+                                                <td class="px-3 py-2 text-right text-gray-600">
+                                                    {{ $dato->humedad_pct !== null ? $dato->humedad_pct . '%' : '—' }}
+                                                </td>
+                                                <td class="px-3 py-2 text-right text-gray-600">
+                                                    {{ $dato->viento_kmh !== null ? number_format($dato->viento_kmh, 0) . ' km/h' : '—' }}
+                                                </td>
+                                                <td class="px-2 py-2 text-right">
+                                                    @unless($finca->estacion?->fuente === 'aemet')
+                                                        <form method="POST"
+                                                            action="{{ route('meteorologia.datos.destroy', [$finca, $dato]) }}"
+                                                            onsubmit="return confirm('¿Eliminar este dato?')">
+                                                            @csrf @method('DELETE')
+                                                            <button type="submit" class="text-gray-300 hover:text-red-500 transition" title="Eliminar">
+                                                                <svg class="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                                                                </svg>
+                                                            </button>
+                                                        </form>
+                                                    @endunless
+                                                </td>
+                                            </tr>
+                                        @endforeach
+                                    </tbody>
+                                    <tfoot class="border-t border-gray-100 bg-gray-50">
+                                        <tr class="text-gray-500">
+                                            <td class="px-4 py-2 text-xs font-medium">Acumulado 30 d.</td>
+                                            <td colspan="2" class="px-3 py-2"></td>
+                                            <td class="px-3 py-2 text-right text-xs font-semibold text-amber-700">
+                                                {{ number_format($datosMeteoro->sum(fn($d) => max(0, (($d->temp_max + $d->temp_min) / 2) - 10)), 1) }} GDD
+                                            </td>
+                                            <td class="px-3 py-2 text-right text-xs font-semibold text-gray-700">
+                                                {{ number_format($datosMeteoro->sum('precipitacion_mm'), 1) }} mm
+                                            </td>
+                                            <td colspan="3" class="px-3 py-2"></td>
+                                        </tr>
+                                    </tfoot>
+                                </table>
+                            </div>
+                        @endif
+                    </div>
+
                 </div>
 
             </div>
         </div>
     </div>
 
+    @assets
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    @endassets
 
     <script>
+    (function () {
         const parcelasConSigpac = @json($parcelasConSigpac);
+
+        const container = document.getElementById('sigpac-map');
+        if (container._leaflet_id != null) {
+            container._leaflet_id = null;
+        }
 
         const pnoaLayer = L.tileLayer(
             'https://www.ign.es/wmts/pnoa-ma?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0&LAYER=OI.OrthoimageCoverage&STYLE=default&TILEMATRIXSET=GoogleMapsCompatible&TILEMATRIX={z}&TILEROW={y}&TILECOL={x}&FORMAT=image%2Fpng',
@@ -201,7 +457,7 @@
         );
         const map = L.map('sigpac-map', { center: [39.5, -3.0], zoom: 8, layers: [pnoaLayer] });
 
-        function setLayer(name) {
+        window.setLayer = function (name) {
             if (name === 'pnoa') {
                 map.removeLayer(osmLayer); map.addLayer(pnoaLayer);
                 document.getElementById('btn-pnoa').classList.add('bg-gray-100');
@@ -211,7 +467,7 @@
                 document.getElementById('btn-osm').classList.add('bg-gray-100');
                 document.getElementById('btn-pnoa').classList.remove('bg-gray-100');
             }
-        }
+        };
 
         if (parcelasConSigpac.length > 0) {
             const loading = document.getElementById('map-loading');
@@ -252,5 +508,6 @@
                 }
             });
         }
+    })();
     </script>
 </x-app-layout>
