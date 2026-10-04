@@ -9,6 +9,8 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class Tratamiento extends Model
 {
+    public const EFICACIAS = ['buena' => 'Buena', 'regular' => 'Regular', 'mala' => 'Mala'];
+
     protected $fillable = [
         'parcela_id',
         'producto_id',
@@ -16,11 +18,17 @@ class Tratamiento extends Model
         'fecha',
         'dosis_l_ha',
         'motivo',
+        'superficie_tratada_ha',
+        'aplicador_nombre',
+        'aplicador_ropo',
+        'equipo_roma',
+        'eficacia',
     ];
 
     protected $casts = [
         'fecha'      => 'date',
         'dosis_l_ha' => 'decimal:4',
+        'superficie_tratada_ha' => 'decimal:4',
     ];
 
     public function parcela(): BelongsTo
