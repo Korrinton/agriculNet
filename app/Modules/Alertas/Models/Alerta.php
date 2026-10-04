@@ -13,6 +13,7 @@ class Alerta extends Model
         'parcela_id',
         'user_id',
         'tipo',
+        'clave',
         'nivel',
         'mensaje',
         'leida',

@@ -23,11 +23,15 @@ class AlertaController extends Controller
 
     public function show(Alerta $alerta): JsonResponse
     {
+        $this->authorize('view', $alerta);
+
         return response()->json($alerta->load('parcela'));
     }
 
     public function marcarLeida(Alerta $alerta): JsonResponse
     {
+        $this->authorize('update', $alerta);
+
         $alerta->marcarLeida();
 
         return response()->json($alerta);
