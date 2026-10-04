@@ -15,6 +15,7 @@ class ModulesServiceProvider extends ServiceProvider
         'Tratamientos',
         'Costes',
         'CuadernoDigital',
+        'Riegos',
         'Usuarios',
     ];
 
