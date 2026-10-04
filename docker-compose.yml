@@ -1,3 +1,7 @@
+# Fija el nombre del proyecto: sin esto, Compose usa el nombre de la carpeta
+# ("agriculnet") y levanta un stack paralelo con su propia base de datos vacía.
+name: programa_agrario
+
 services:
 
   nginx:
@@ -20,6 +24,7 @@ services:
     volumes:
       - .:/var/www/html
       - ./docker/php/local.ini:/usr/local/etc/php/conf.d/local.ini:ro
+      - vendor:/var/www/html/vendor
     environment:
       - APP_ENV=${APP_ENV:-local}
     env_file:
@@ -40,6 +45,8 @@ services:
     command: php artisan queue:work redis --sleep=3 --tries=3 --max-time=3600
     volumes:
       - .:/var/www/html
+      # Mismo vendor que php-fpm: sin esto usaría el vendor/ del host, desactualizado
+      - vendor:/var/www/html/vendor
     env_file:
       - .env
     depends_on:
@@ -58,6 +65,7 @@ services:
     command: php artisan schedule:work
     volumes:
       - .:/var/www/html
+      - vendor:/var/www/html/vendor
     env_file:
       - .env
     depends_on:
@@ -104,10 +112,33 @@ services:
       - agrario
     restart: unless-stopped
 
+  # Copia diaria de la BD en ./backups (ver docker/backup/backup.sh)
+  db-backup:
+    image: postgres:16-alpine
+    entrypoint: ["sh", "/backup.sh"]
+    environment:
+      PGHOST: postgres
+      PGDATABASE: ${DB_DATABASE:-agrario}
+      PGUSER: ${DB_USERNAME:-agrario}
+      PGPASSWORD: ${DB_PASSWORD:-secret}
+      BACKUP_INTERVAL_HOURS: 23
+      BACKUP_KEEP_DAYS: 14
+      BACKUP_KEEP_MIN: 7
+    volumes:
+      - ./docker/backup/backup.sh:/backup.sh:ro
+      - ./backups:/backups
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - agrario
+    restart: unless-stopped
+
 
 volumes:
   postgres_data:
   redis_data:
+  vendor:
   # minio_data:
 
 networks:
