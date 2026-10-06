@@ -54,7 +54,7 @@ new class extends Component
                                 <path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd"/>
                             </svg>
                         </button>
-                        <div x-show="open"
+                        <div x-show="open" x-cloak
                              x-transition:enter="transition ease-out duration-100"
                              x-transition:enter-start="opacity-0 scale-95"
                              x-transition:enter-end="opacity-100 scale-100"
@@ -146,6 +146,11 @@ new class extends Component
                         <x-dropdown-link :href="route('profile')" wire:navigate>
                             Perfil
                         </x-dropdown-link>
+                        @if(auth()->user()->is_admin)
+                            <x-dropdown-link :href="route('admin.panel')" wire:navigate>
+                                Administración
+                            </x-dropdown-link>
+                        @endif
                         <div class="border-t border-stone-100 my-1"></div>
                         <button wire:click="logout" class="w-full text-start">
                             <x-dropdown-link class="text-rose-600 hover:text-rose-700">
@@ -210,6 +215,10 @@ new class extends Component
             <div class="space-y-0.5 px-3">
                 <a href="{{ route('profile') }}" wire:navigate
                    class="block px-3 py-2 rounded-md text-sm font-medium text-green-300 hover:text-white hover:bg-green-800/60 transition duration-100">Perfil</a>
+                @if(auth()->user()->is_admin)
+                    <a href="{{ route('admin.panel') }}" wire:navigate
+                       class="block px-3 py-2 rounded-md text-sm font-medium text-green-300 hover:text-white hover:bg-green-800/60 transition duration-100">Administración</a>
+                @endif
                 <button wire:click="logout" class="w-full text-start">
                     <span class="block px-3 py-2 rounded-md text-sm font-medium text-rose-400 hover:text-rose-300 hover:bg-green-800/60 transition duration-100">Cerrar sesión</span>
                 </button>
