@@ -1,3 +1,360 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/*
+ * Superficies del navegador con los colores de la marca: lo que no se dibuja también se ve.
+ */
+@layer base {
+    /* Lo que Alpine muestra u oculta no debe verse antes de que arranque */
+    [x-cloak] {
+        display: none !important;
+    }
+
+    html {
+        accent-color: theme('colors.green.700');
+        caret-color: theme('colors.green.700');
+        scrollbar-color: theme('colors.stone.300') transparent;
+        -webkit-tap-highlight-color: transparent;
+    }
+
+    ::selection {
+        background-color: theme('colors.lime.200');
+        color: theme('colors.green.950');
+    }
+
+    :focus-visible {
+        outline: 2px solid theme('colors.green.600');
+        outline-offset: 2px;
+    }
+
+    /* Cifras alineadas en tablas y datos */
+    table,
+    .cifra {
+        font-variant-numeric: tabular-nums;
+    }
+
+    a {
+        text-underline-offset: 3px;
+    }
+}
+
+@layer components {
+    /* Botón de envío mientras se guarda (lo activa resources/js/app.js) */
+    [data-enviando] {
+        position: relative;
+        pointer-events: none;
+        color: transparent !important;
+    }
+
+    [data-enviando]::after {
+        content: '';
+        position: absolute;
+        inset: 0;
+        margin: auto;
+        width: 1rem;
+        height: 1rem;
+        border-radius: 9999px;
+        border: 2px solid rgb(255 255 255 / 0.45);
+        border-top-color: #fff;
+        animation: girar 0.7s linear infinite;
+    }
+
+    .btn-claro[data-enviando]::after {
+        border-color: rgb(21 128 61 / 0.3);
+        border-top-color: theme('colors.green.700');
+    }
+}
+
+@layer utilities {
+    /* Respuesta al pulsar: el botón cede un poco */
+    .pulsable {
+        transition: transform 120ms cubic-bezier(0.16, 1, 0.3, 1), background-color 150ms, border-color 150ms, color 150ms, box-shadow 150ms;
+    }
+
+    .pulsable:active {
+        transform: scale(0.97);
+    }
+}
+
+/* ── Previsión del panel: las barras de temperatura se levantan desde su mínima ────────────── */
+.barra-temp {
+    transform-origin: bottom;
+    animation: levantar 650ms cubic-bezier(0.16, 1, 0.3, 1) both;
+    animation-delay: calc(var(--i, 0) * 45ms + 120ms);
+}
+
+@keyframes levantar {
+    from {
+        transform: scaleY(0.08);
+        opacity: 0.2;
+    }
+}
+
+/* Día de helada: el hielo «respira» una vez para que se vea sin quedarse parpadeando */
+.dia-helada {
+    animation: escarcha 1.6s cubic-bezier(0.16, 1, 0.3, 1) 700ms 1 both;
+}
+
+@keyframes escarcha {
+    0% { box-shadow: 0 0 0 0 rgb(125 211 252 / 0); }
+    35% { box-shadow: 0 6px 24px -4px rgb(125 211 252 / 0.55); }
+    100% { box-shadow: 0 4px 14px -6px rgb(125 211 252 / 0.35); }
+}
+
+/* ── Avisos (toasts) ──────────────────────────────────────────────────────────────────────── */
+.aviso-entra {
+    animation: aviso-entra 320ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+@keyframes aviso-entra {
+    from {
+        transform: translateY(-12px) scale(0.98);
+        opacity: 0;
+        filter: blur(4px);
+    }
+}
+
+.aviso-sale {
+    animation: aviso-sale 180ms ease-in both;
+}
+
+@keyframes aviso-sale {
+    to {
+        transform: translateX(16px);
+        opacity: 0;
+    }
+}
+
+/* Tiempo que le queda al aviso antes de cerrarse */
+.aviso-tiempo {
+    transform-origin: left;
+    animation: aviso-tiempo var(--duracion, 6s) linear both;
+}
+
+.aviso:hover .aviso-tiempo,
+.aviso:focus-within .aviso-tiempo {
+    animation-play-state: paused;
+}
+
+@keyframes aviso-tiempo {
+    to {
+        transform: scaleX(0);
+    }
+}
+
+@keyframes girar {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+/* Paneles que se despliegan (detalles de alertas, actividad) */
+.aparece {
+    animation: aparece 220ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+@keyframes aparece {
+    from {
+        opacity: 0;
+        transform: translateY(4px);
+    }
+}
+
+/*
+ * Movimiento reducido: sin desplazamientos ni escalados; se mantienen los cambios de
+ * opacidad y color que confirman una acción.
+ */
+@media (prefers-reduced-motion: reduce) {
+    .barra-temp {
+        animation-name: aparecer-quieto;
+        animation-duration: 200ms;
+        animation-delay: 0ms;
+    }
+
+    .dia-helada {
+        animation: none;
+        box-shadow: 0 4px 14px -6px rgb(125 211 252 / 0.35);
+    }
+
+    .aviso-entra,
+    .aviso-sale,
+    .aparece {
+        animation-name: aparecer-quieto;
+    }
+
+    .aviso-sale {
+        animation-direction: reverse;
+    }
+
+    .pulsable:active {
+        transform: none;
+    }
+
+    [data-enviando]::after {
+        animation-duration: 1.4s;
+    }
+}
+
+@keyframes aparecer-quieto {
+    from {
+        opacity: 0;
+    }
+}
+
+/* ── Pantallas de acceso (login, registro…) ───────────────────────────────────────────────── */
+
+/* Los bloques entran escalonados: --i marca el orden */
+.entra {
+    /* backwards: al terminar no retiene transform y deja actuar a hover/:active */
+    animation: entra 560ms cubic-bezier(0.16, 1, 0.3, 1) backwards;
+    animation-delay: calc(var(--i, 0) * 70ms + 60ms);
+}
+
+@keyframes entra {
+    from {
+        opacity: 0;
+        transform: translateY(12px);
+        filter: blur(3px);
+    }
+}
+
+/* El racimo del logo brota grano a grano */
+.logo-brota path {
+    stroke-dasharray: 1;
+    animation: trazar 700ms cubic-bezier(0.65, 0, 0.35, 1) both;
+}
+
+.logo-brota circle {
+    transform-box: fill-box;
+    transform-origin: center;
+    animation: grano 460ms cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+
+.logo-brota circle:nth-of-type(1) { animation-delay: 300ms; }
+.logo-brota circle:nth-of-type(2) { animation-delay: 370ms; }
+.logo-brota circle:nth-of-type(3) { animation-delay: 420ms; }
+.logo-brota circle:nth-of-type(4) { animation-delay: 490ms; }
+.logo-brota circle:nth-of-type(5) { animation-delay: 540ms; }
+.logo-brota circle:nth-of-type(6) { animation-delay: 590ms; }
+.logo-brota circle:nth-of-type(7) { animation-delay: 660ms; }
+
+@keyframes grano {
+    from {
+        transform: scale(0);
+        opacity: 0;
+    }
+}
+
+@keyframes trazar {
+    from {
+        stroke-dashoffset: 1;
+    }
+    to {
+        stroke-dashoffset: 0;
+    }
+}
+
+/* La parra del panel lateral crece y se recoge en bucle; los tiempos los marca resources/js/app.js */
+[data-parra="trazo"] {
+    stroke-dasharray: 1;
+}
+
+[data-parra="brote"] {
+    transform-box: fill-box;
+    transform-origin: center;
+}
+
+/* Las hojas se mecen muy despacio, como con brisa (en un <g> para no pisar su escala) */
+.parra-mece {
+    transform-box: fill-box;
+    transform-origin: 0% 100%;
+    animation: mecer 7s ease-in-out infinite alternate;
+}
+
+@keyframes mecer {
+    from { transform: rotate(-4deg); }
+    to { transform: rotate(5deg); }
+}
+
+/* Halos de luz que derivan lentamente */
+.brillo-deriva {
+    animation: deriva 18s ease-in-out infinite alternate;
+}
+
+.brillo-deriva-2 {
+    animation: deriva 23s ease-in-out -8s infinite alternate-reverse;
+}
+
+@keyframes deriva {
+    from { transform: translate(0, 0) scale(1); }
+    to { transform: translate(-40px, 60px) scale(1.15); }
+}
+
+/* Un error que aparece sacude levemente su campo para llamar la atención */
+.error-aparece {
+    animation: sacudir 380ms cubic-bezier(0.36, 0.07, 0.19, 0.97) both;
+}
+
+@keyframes sacudir {
+    0% { opacity: 0; transform: translateX(0); }
+    20% { opacity: 1; transform: translateX(-5px); }
+    45% { transform: translateX(4px); }
+    70% { transform: translateX(-2px); }
+    100% { transform: translateX(0); }
+}
+
+/* Ojo de «mostrar contraseña»: la línea que lo tacha se dibuja al mostrarla */
+.ojo-tachado {
+    stroke-dasharray: 1;
+    stroke-dashoffset: 1;
+    transition: stroke-dashoffset 240ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.ojo-visible .ojo-tachado {
+    stroke-dashoffset: 0;
+}
+
+.ojo-pupila {
+    transform-box: fill-box;
+    transform-origin: center;
+    transition: transform 240ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.ojo-visible .ojo-pupila {
+    transform: scale(0.65);
+}
+
+.ojo-contrasena:active svg {
+    transform: scale(0.9);
+}
+
+/* Edge añade su propio botón de mostrar contraseña: se oculta para no tener dos */
+input::-ms-reveal,
+input::-ms-clear {
+    display: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .entra,
+    .error-aparece,
+    .logo-brota circle {
+        animation-name: aparecer-quieto;
+        animation-duration: 300ms;
+    }
+
+    .logo-brota path {
+        animation: none;
+        stroke-dashoffset: 0;
+    }
+
+    .parra-mece,
+    .brillo-deriva,
+    .brillo-deriva-2 {
+        animation: none;
+    }
+
+    .ojo-contrasena:active svg {
+        transform: none;
+    }
+}

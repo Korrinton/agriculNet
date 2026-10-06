@@ -1,222 +1,332 @@
+@php
+    use App\Modules\CalendarioFenologico\Services\CalendarioCampana;
+
+    $ahora = now('Europe/Madrid');
+    $saludo = $ahora->hour < 6 ? 'Buenas noches' : ($ahora->hour < 13 ? 'Buenos días' : ($ahora->hour < 21 ? 'Buenas tardes' : 'Buenas noches'));
+    $nombre = Str::of(auth()->user()->name)->explode(' ')->first();
+    $eur = fn ($v) => number_format((float) $v, 2, ',', '.') . ' €';
+    $num = fn ($v, $d = 0) => number_format((float) $v, $d, ',', '.');
+    $nombreFinca = fn ($f) => ($f->paraje ?: $f->provincia_nombre);
+    $estiloNivel = [
+        'critical' => ['punto' => 'bg-red-500', 'texto' => 'text-red-700', 'fondo' => 'bg-red-50', 'nombre' => 'Crítica'],
+        'warning'  => ['punto' => 'bg-amber-500', 'texto' => 'text-amber-800', 'fondo' => 'bg-amber-50', 'nombre' => 'Aviso'],
+        'info'     => ['punto' => 'bg-sky-500', 'texto' => 'text-sky-800', 'fondo' => 'bg-sky-50', 'nombre' => 'Información'],
+    ];
+@endphp
+
 <x-app-layout>
-
-    @php
-        $hora = now()->hour;
-        $saludo = $hora < 12 ? 'Buenos días' : ($hora < 20 ? 'Buenas tardes' : 'Buenas noches');
-        $nombre = Str::of(auth()->user()->name)->explode(' ')->first();
-    @endphp
-
-    {{-- Hero --}}
-    <div class="bg-white border-b border-stone-200">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-            <div class="flex items-start justify-between gap-4">
+    {{-- ── Banda superior: saludo, campaña y el tiempo que viene en la finca ───────────────── --}}
+    <section class="bg-green-900 text-white">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-8 pb-10">
+            <div class="flex flex-wrap items-end justify-between gap-4">
                 <div>
-                    <h1 class="text-2xl font-bold text-stone-900">{{ $saludo }}, {{ $nombre }}</h1>
-                    <p class="text-stone-400 text-sm mt-1">
-                        {{ ucfirst(\Carbon\Carbon::now()->locale('es')->isoFormat('dddd, D [de] MMMM [de] YYYY')) }}
+                    <h1 class="text-2xl sm:text-3xl font-semibold tracking-tight text-balance">{{ $saludo }}, {{ $nombre }}</h1>
+                    <p class="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-green-200">
+                        <span>{{ ucfirst($ahora->locale('es')->isoFormat('dddd, D [de] MMMM')) }}</span>
+                        @if(!empty($campana['fase']))
+                            <span class="inline-flex items-center gap-1.5 rounded-full bg-white/10 px-2.5 py-0.5 text-green-50">
+                                <span class="h-2 w-2 rounded-full" style="background: {{ $campana['fase']['color'] }}"></span>
+                                La viña está en {{ mb_strtolower($campana['fase']['nombre']) }}
+                            </span>
+                        @endif
                     </p>
                 </div>
-                <a href="{{ route('vinedo.fincas.create') }}" wire:navigate
-                   class="shrink-0 hidden sm:inline-flex items-center gap-2 px-4 py-2 bg-green-700 text-white text-sm font-semibold rounded-lg hover:bg-green-800 active:bg-green-900 transition duration-150">
-                    <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4"/>
-                    </svg>
-                    Nueva finca
-                </a>
+
+                @if($fincas->count() > 1)
+                    {{-- Cambiar de finca sin perder el panel --}}
+                    <nav class="flex max-w-full gap-1 overflow-x-auto rounded-xl bg-green-950/50 p-1" aria-label="Elegir finca">
+                        @foreach($fincas as $f)
+                            @php $activa = $finca && $f->id === $finca->id; @endphp
+                            <a href="{{ route('dashboard', ['finca' => $f->id]) }}" wire:navigate
+                                @if($activa) aria-current="page" @endif
+                                class="pulsable shrink-0 rounded-lg px-3 py-1.5 text-sm {{ $activa ? 'bg-white text-green-900 shadow-sm font-semibold' : 'text-green-200 hover:bg-white/10 hover:text-white' }}">
+                                {{ $nombreFinca($f) }}
+                                <span class="cifra {{ $activa ? 'text-green-700' : 'text-green-400' }}">· {{ $num($f->parcelas->sum('superficie_ha'), 1) }} ha</span>
+                            </a>
+                        @endforeach
+                    </nav>
+                @endif
             </div>
+
+            @if(!$finca)
+                {{-- Primera visita: aún no hay fincas --}}
+                <div class="mt-8 grid gap-6 rounded-2xl bg-green-950/40 p-6 sm:p-8 lg:grid-cols-[1.2fr_1fr] lg:items-center">
+                    <div>
+                        <h2 class="text-xl font-semibold">Da de alta tu primera finca</h2>
+                        <p class="mt-2 max-w-prose text-green-100/90">Con la provincia, el municipio y las parcelas SIGPAC, el panel te mostrará aquí la previsión de AEMET de tu municipio, el riesgo de helada, los plazos de seguridad en curso y cómo va la campaña.</p>
+                        <a href="{{ route('vinedo.fincas.create') }}" wire:navigate
+                            class="pulsable mt-5 inline-flex items-center gap-2 rounded-lg bg-lime-300 px-4 py-2.5 text-sm font-semibold text-green-950 hover:bg-lime-200">
+                            <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" d="M12 5v14M5 12h14"/></svg>
+                            Crear finca
+                        </a>
+                    </div>
+                    <ol class="space-y-3 text-sm text-green-100">
+                        @foreach(['Crea la finca con su provincia y municipio.', 'Añade sus parcelas (polígono, parcela y recinto SIGPAC).', 'Vincula la estación AEMET más cercana para los datos del tiempo.'] as $i => $paso)
+                            <li class="flex gap-3">
+                                <span class="cifra flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-white/10 text-xs font-semibold">{{ $i + 1 }}</span>
+                                <span class="pt-0.5">{{ $paso }}</span>
+                            </li>
+                        @endforeach
+                    </ol>
+                </div>
+            @elseif(empty($prevision['dias']))
+                <div class="mt-8 rounded-2xl bg-green-950/40 p-6 text-green-100">
+                    <p class="font-medium text-white">Todavía no hay previsión para {{ $nombreFinca($finca) }}</p>
+                    <p class="mt-1 text-sm">La previsión de AEMET se descarga cada mañana a las 6:30 para el municipio de cada finca.</p>
+                    <a href="{{ route('meteorologia.index') }}" wire:navigate class="mt-3 inline-block text-sm font-medium text-lime-300 underline hover:text-lime-200">Ir a meteorología</a>
+                </div>
+            @else
+                @php
+                    $dias = $prevision['dias'];
+                    $diasHelada = collect($dias)->where('helada', true);
+                    $diasLluvia = collect($dias)->filter(fn ($d) => ($d['lluvia'] ?? 0) >= 50);
+                    $lista = fn ($c) => $c->map(fn ($d) => $d['dia'] === 'Hoy' ? 'hoy' : mb_strtolower($d['dia']) . ' ' . $d['numero'])->join(', ', ' y ');
+                    // Línea de 0 °C dentro de la escala (referencia para las heladas)
+                    $cero = $prevision['min'] < 0 ? round((0 - $prevision['min']) / max(1, $prevision['max'] - $prevision['min']) * 100, 1) : null;
+                @endphp
+                <div class="mt-8">
+                    <div class="flex flex-wrap items-baseline justify-between gap-2">
+                        <h2 class="text-lg font-semibold">
+                            @if($diasHelada->isNotEmpty())
+                                <span class="text-sky-200">Riesgo de helada: {{ $lista($diasHelada) }}</span>
+                            @elseif($diasLluvia->isNotEmpty())
+                                Lluvia probable: {{ $lista($diasLluvia) }}
+                            @else
+                                Semana sin riesgo de helada
+                            @endif
+                        </h2>
+                        <p class="text-xs text-green-300">Previsión AEMET para {{ $nombreFinca($finca) }} ({{ $finca->codigo_ine }})</p>
+                    </div>
+
+                    <ol class="mt-4 grid grid-cols-7 gap-1 sm:gap-2" aria-label="Previsión de 7 días">
+                        @foreach($dias as $i => $d)
+                            @php $calor = $d['max'] >= 35; @endphp
+                            <li class="flex flex-col items-center rounded-xl px-0.5 py-3 sm:px-2 {{ $d['helada'] ? 'dia-helada bg-sky-300/15 ring-1 ring-sky-200/40' : ($d['dia'] === 'Hoy' ? 'bg-white/[0.07]' : '') }}"
+                                title="{{ $d['cielo'] }}">
+                                <span class="text-xs font-semibold {{ $d['dia'] === 'Hoy' ? 'text-white' : 'text-green-200' }}">{{ $d['dia'] }}</span>
+                                <span class="cifra text-[11px] text-green-400">{{ $d['numero'] }}</span>
+                                <x-icono-cielo :tipo="$d['icono']" class="mt-2 h-6 w-6 {{ $d['helada'] ? 'text-sky-200' : 'text-green-100' }}" />
+                                <span class="cifra mt-2 text-sm font-semibold {{ $calor ? 'text-amber-300' : 'text-white' }}">{{ $d['max'] }}°</span>
+
+                                {{-- Rango de temperaturas del día sobre la escala común de la semana --}}
+                                <div class="relative mt-1.5 h-24 w-full sm:h-32" aria-hidden="true">
+                                    @if($cero !== null)
+                                        <span class="absolute inset-x-1 border-t border-dashed border-sky-200/50" style="bottom: {{ $cero }}%"></span>
+                                    @endif
+                                    <span class="barra-temp absolute left-1/2 w-2.5 -translate-x-1/2 rounded-full sm:w-3.5
+                                        {{ $d['helada'] ? 'bg-gradient-to-t from-sky-200 to-sky-400' : ($calor ? 'bg-gradient-to-t from-lime-300 to-amber-400' : 'bg-gradient-to-t from-emerald-400 to-lime-300') }}"
+                                        style="bottom: {{ $d['desde'] }}%; height: {{ $d['alto'] }}%; --i: {{ $i }}"></span>
+                                </div>
+
+                                <span class="cifra mt-1.5 text-sm {{ $d['helada'] ? 'font-semibold text-sky-200' : 'text-green-200' }}">{{ $d['min'] }}°</span>
+                                @if($d['helada'])
+                                    <span class="mt-1 text-[10px] font-semibold uppercase tracking-wide text-sky-200">Helada</span>
+                                @endif
+                                @if($d['lluvia'] !== null)
+                                    <span class="cifra mt-1.5 inline-flex items-center gap-0.5 text-[11px] {{ $d['lluvia'] >= 50 ? 'text-sky-200' : 'text-green-400' }}">
+                                        <svg class="h-3 w-3" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 3s-6 6.7-6 11a6 6 0 0 0 12 0c0-4.3-6-11-6-11Z" opacity="{{ max(0.35, $d['lluvia'] / 100) }}"/></svg>
+                                        {{ $d['lluvia'] }}%
+                                    </span>
+                                @endif
+                                <span class="sr-only">{{ $d['cielo'] }}: máxima {{ $d['max'] }}°, mínima {{ $d['min'] }}°{{ $d['helada'] ? ', riesgo de helada' : '' }}{{ $d['lluvia'] !== null ? ', probabilidad de lluvia ' . $d['lluvia'] . '%' : '' }}</span>
+                            </li>
+                        @endforeach
+                    </ol>
+                </div>
+            @endif
         </div>
-    </div>
+    </section>
 
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
+    @if($finca)
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 grid gap-6 lg:grid-cols-5">
 
-        {{-- Módulos --}}
-        <div>
-            <p class="text-xs font-semibold text-stone-400 uppercase tracking-widest mb-4">Módulos</p>
-            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
-
-                {{-- Viñedo --}}
-                <a href="{{ route('vinedo.fincas.index') }}" wire:navigate
-                    class="group bg-white rounded-xl border border-stone-200 p-5 hover:border-green-300 hover:shadow-sm transition duration-150">
-                    <div class="flex items-start gap-3.5">
-                        <div class="p-2.5 bg-green-50 rounded-lg ring-1 ring-green-100 shrink-0">
-                            <svg class="h-5 w-5 text-green-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/>
-                            </svg>
-                        </div>
-                        <div class="flex-1 min-w-0">
-                            <div class="flex items-center justify-between gap-2">
-                                <p class="font-semibold text-stone-800 group-hover:text-green-700 transition duration-150 text-sm">Viñedo</p>
-                                <svg class="h-3.5 w-3.5 text-stone-300 group-hover:text-green-400 transition duration-150 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
-                            </div>
-                            <p class="text-xs text-stone-400 mt-0.5">Fincas y parcelas</p>
-                        </div>
+            {{-- ── Columna principal: lo que requiere atención y lo último anotado ────────────── --}}
+            <div class="space-y-6 lg:col-span-3">
+                <section class="rounded-2xl bg-white ring-1 ring-stone-200/80 shadow-[0_1px_2px_rgb(28_25_23/0.04)]" aria-labelledby="atencion">
+                    <div class="flex items-center justify-between px-5 pt-5">
+                        <h2 id="atencion" class="text-base font-semibold text-stone-900">Requiere atención</h2>
+                        @if($alertasTotal > 0)
+                            <a href="{{ route('alertas.index') }}" wire:navigate class="text-sm font-medium text-green-700 hover:text-green-900">
+                                {{ $alertasTotal === 1 ? 'Ver la alerta' : 'Ver las ' . $alertasTotal . ' alertas' }}
+                            </a>
+                        @endif
                     </div>
-                </a>
 
-                {{-- Fenología --}}
-                <a href="{{ route('fenologia.index') }}" wire:navigate
-                    class="group bg-white rounded-xl border border-stone-200 p-5 hover:border-emerald-300 hover:shadow-sm transition duration-150">
-                    <div class="flex items-start gap-3.5">
-                        <div class="p-2.5 bg-emerald-50 rounded-lg ring-1 ring-emerald-100 shrink-0">
-                            <svg class="h-5 w-5 text-emerald-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
-                            </svg>
-                        </div>
-                        <div class="flex-1 min-w-0">
-                            <div class="flex items-center justify-between gap-2">
-                                <p class="font-semibold text-stone-800 group-hover:text-emerald-700 transition duration-150 text-sm">Fenología</p>
-                                <svg class="h-3.5 w-3.5 text-stone-300 group-hover:text-emerald-400 transition duration-150 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+                    @if($alertas->isEmpty() && $plazos->isEmpty())
+                        <div class="flex items-start gap-3 px-5 pb-6 pt-4">
+                            <span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-green-50 text-green-700">
+                                <svg class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M5 12.5l4.5 4.5L19 7.5"/></svg>
+                            </span>
+                            <div>
+                                <p class="font-medium text-stone-800">Todo en orden</p>
+                                <p class="mt-0.5 text-sm text-stone-500">No hay alertas sin leer ni parcelas en plazo de seguridad: se puede cosechar en todas.</p>
                             </div>
-                            <p class="text-xs text-stone-400 mt-0.5">Estados BBCH y grados día</p>
                         </div>
-                    </div>
-                </a>
+                    @else
+                        <ul class="mt-3 divide-y divide-stone-100">
+                            @foreach($alertas as $a)
+                                @php $e = $estiloNivel[$a->nivel] ?? $estiloNivel['info']; @endphp
+                                <li>
+                                    <a href="{{ route('alertas.index') }}" wire:navigate class="group flex gap-3 px-5 py-3.5 transition-colors hover:bg-stone-50">
+                                        <span class="mt-1.5 h-2.5 w-2.5 shrink-0 rounded-full {{ $e['punto'] }}" aria-hidden="true"></span>
+                                        <div class="min-w-0 flex-1">
+                                            <p class="text-sm text-stone-800 group-hover:text-stone-950">{{ $a->mensaje }}</p>
+                                            <p class="mt-0.5 text-xs text-stone-500">
+                                                <span class="{{ $e['texto'] }} font-medium">{{ $e['nombre'] }}</span>
+                                                · {{ $a->parcela?->etiqueta ?? 'Finca' }}
+                                                · {{ $a->created_at->locale('es')->diffForHumans() }}
+                                            </p>
+                                        </div>
+                                    </a>
+                                </li>
+                            @endforeach
 
-                {{-- Meteorología --}}
-                <a href="{{ route('meteorologia.index') }}" wire:navigate
-                    class="group bg-white rounded-xl border border-stone-200 p-5 hover:border-sky-300 hover:shadow-sm transition duration-150">
-                    <div class="flex items-start gap-3.5">
-                        <div class="p-2.5 bg-sky-50 rounded-lg ring-1 ring-sky-100 shrink-0">
-                            <svg class="h-5 w-5 text-sky-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 15a4 4 0 004 4h9a5 5 0 10-.1-9.999 5.002 5.002 0 10-9.78 2.096A4.001 4.001 0 003 15z"/>
-                            </svg>
-                        </div>
-                        <div class="flex-1 min-w-0">
-                            <div class="flex items-center justify-between gap-2">
-                                <p class="font-semibold text-stone-800 group-hover:text-sky-700 transition duration-150 text-sm">Meteorología</p>
-                                <svg class="h-3.5 w-3.5 text-stone-300 group-hover:text-sky-400 transition duration-150 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
-                            </div>
-                            <p class="text-xs text-stone-400 mt-0.5">Datos de estaciones AEMET</p>
-                        </div>
-                    </div>
-                </a>
+                            @foreach($plazos as $p)
+                                @php $t = $p['tratamiento']; @endphp
+                                <li class="px-5 py-3.5">
+                                    <div class="flex items-baseline justify-between gap-3">
+                                        <p class="text-sm text-stone-800">
+                                            <span class="font-medium">No cosechar {{ $t->parcela->etiqueta }}</span>
+                                            <span class="text-stone-500">hasta el {{ $p['fin']->format('d/m') }}</span>
+                                        </p>
+                                        <span class="cifra shrink-0 rounded-full bg-amber-50 px-2 py-0.5 text-xs font-semibold text-amber-800">
+                                            {{ $p['quedan'] === 0 ? 'termina hoy' : ($p['quedan'] === 1 ? 'queda 1 día' : 'quedan ' . $p['quedan'] . ' días') }}
+                                        </span>
+                                    </div>
+                                    <p class="mt-0.5 text-xs text-stone-500">Plazo de seguridad de {{ $t->producto?->nombre }} ({{ $p['plazo'] }} días), aplicado el {{ $t->fecha->format('d/m') }}</p>
+                                    <div class="mt-2 h-1.5 overflow-hidden rounded-full bg-stone-100" role="progressbar" aria-valuenow="{{ $p['avance'] }}" aria-valuemin="0" aria-valuemax="100" aria-label="Plazo transcurrido">
+                                        <div class="h-full rounded-full bg-gradient-to-r from-amber-400 to-green-500" style="width: {{ $p['avance'] }}%"></div>
+                                    </div>
+                                </li>
+                            @endforeach
+                        </ul>
+                    @endif
+                </section>
 
-                {{-- Tratamientos --}}
-                <a href="{{ route('tratamientos.index') }}" wire:navigate
-                    class="group bg-white rounded-xl border border-stone-200 p-5 hover:border-amber-300 hover:shadow-sm transition duration-150">
-                    <div class="flex items-start gap-3.5">
-                        <div class="p-2.5 bg-amber-50 rounded-lg ring-1 ring-amber-100 shrink-0">
-                            <svg class="h-5 w-5 text-amber-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z"/>
-                            </svg>
-                        </div>
-                        <div class="flex-1 min-w-0">
-                            <div class="flex items-center justify-between gap-2">
-                                <p class="font-semibold text-stone-800 group-hover:text-amber-700 transition duration-150 text-sm">Tratamientos</p>
-                                <svg class="h-3.5 w-3.5 text-stone-300 group-hover:text-amber-400 transition duration-150 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
-                            </div>
-                            <p class="text-xs text-stone-400 mt-0.5">Fitosanitarios y plazos</p>
-                        </div>
-                    </div>
-                </a>
-
-                {{-- Riegos --}}
-                <a href="{{ route('riegos.index') }}" wire:navigate
-                    class="group bg-white rounded-xl border border-stone-200 p-5 hover:border-cyan-300 hover:shadow-sm transition duration-150">
-                    <div class="flex items-start gap-3.5">
-                        <div class="p-2.5 bg-cyan-50 rounded-lg ring-1 ring-cyan-100 shrink-0">
-                            <svg class="h-5 w-5 text-cyan-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3c-3 4.5-6 7.8-6 11a6 6 0 0012 0c0-3.2-3-6.5-6-11z"/>
-                            </svg>
-                        </div>
-                        <div class="flex-1 min-w-0">
-                            <div class="flex items-center justify-between gap-2">
-                                <p class="font-semibold text-stone-800 group-hover:text-cyan-700 transition duration-150 text-sm">Riegos</p>
-                                <svg class="h-3.5 w-3.5 text-stone-300 group-hover:text-cyan-400 transition duration-150 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
-                            </div>
-                            <p class="text-xs text-stone-400 mt-0.5">Agua aplicada por parcela</p>
-                        </div>
-                    </div>
-                </a>
-
-                {{-- Costes --}}
-                <a href="{{ route('costes.index') }}" wire:navigate
-                    class="group bg-white rounded-xl border border-stone-200 p-5 hover:border-yellow-300 hover:shadow-sm transition duration-150">
-                    <div class="flex items-start gap-3.5">
-                        <div class="p-2.5 bg-yellow-50 rounded-lg ring-1 ring-yellow-100 shrink-0">
-                            <svg class="h-5 w-5 text-yellow-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z"/>
-                            </svg>
-                        </div>
-                        <div class="flex-1 min-w-0">
-                            <div class="flex items-center justify-between gap-2">
-                                <p class="font-semibold text-stone-800 group-hover:text-yellow-700 transition duration-150 text-sm">Costes</p>
-                                <svg class="h-3.5 w-3.5 text-stone-300 group-hover:text-yellow-400 transition duration-150 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
-                            </div>
-                            <p class="text-xs text-stone-400 mt-0.5">Control económico</p>
-                        </div>
-                    </div>
-                </a>
-
-                {{-- Cuaderno Digital --}}
-                <a href="{{ route('cuaderno.index') }}" wire:navigate
-                    class="group bg-white rounded-xl border border-stone-200 p-5 hover:border-teal-300 hover:shadow-sm transition duration-150">
-                    <div class="flex items-start gap-3.5">
-                        <div class="p-2.5 bg-teal-50 rounded-lg ring-1 ring-teal-100 shrink-0">
-                            <svg class="h-5 w-5 text-teal-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
-                            </svg>
-                        </div>
-                        <div class="flex-1 min-w-0">
-                            <div class="flex items-center justify-between gap-2">
-                                <p class="font-semibold text-stone-800 group-hover:text-teal-700 transition duration-150 text-sm">Cuaderno Digital</p>
-                                <svg class="h-3.5 w-3.5 text-stone-300 group-hover:text-teal-400 transition duration-150 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
-                            </div>
-                            <p class="text-xs text-stone-400 mt-0.5">Tratamientos, fertilización y cosecha</p>
-                        </div>
-                    </div>
-                </a>
-
-                {{-- Alertas --}}
-                <a href="{{ route('alertas.index') }}" wire:navigate
-                    class="group bg-white rounded-xl border border-stone-200 p-5 hover:border-rose-300 hover:shadow-sm transition duration-150">
-                    <div class="flex items-start gap-3.5">
-                        <div class="p-2.5 bg-rose-50 rounded-lg ring-1 ring-rose-100 shrink-0">
-                            <svg class="h-5 w-5 text-rose-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/>
-                            </svg>
-                        </div>
-                        <div class="flex-1 min-w-0">
-                            <div class="flex items-center justify-between gap-2">
-                                <p class="font-semibold text-stone-800 group-hover:text-rose-700 transition duration-150 text-sm">Alertas</p>
-                                <svg class="h-3.5 w-3.5 text-stone-300 group-hover:text-rose-400 transition duration-150 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
-                            </div>
-                            <p class="text-xs text-stone-400 mt-0.5">Avisos y notificaciones</p>
-                        </div>
-                    </div>
-                </a>
-
+                <section class="rounded-2xl bg-white ring-1 ring-stone-200/80 shadow-[0_1px_2px_rgb(28_25_23/0.04)]" aria-labelledby="actividad">
+                    <h2 id="actividad" class="px-5 pt-5 text-base font-semibold text-stone-900">Lo último anotado</h2>
+                    @if($actividad->isEmpty())
+                        <p class="px-5 pb-6 pt-2 text-sm text-stone-500">
+                            Aquí verás tus tratamientos, gastos, riegos y observaciones según los vayas anotando.
+                            <a href="{{ route('tratamientos.finca.create', $finca) }}" wire:navigate class="font-medium text-green-700 underline hover:text-green-900">Registra el primer tratamiento</a>.
+                        </p>
+                    @else
+                        @php
+                            $iconos = [
+                                'tratamiento' => ['bg-green-50 text-green-700', 'M9 3h6M10 3v5.5L5.5 17a2.5 2.5 0 0 0 2.2 3.5h8.6a2.5 2.5 0 0 0 2.2-3.5L14 8.5V3'],
+                                'gasto'       => ['bg-amber-50 text-amber-700', 'M14.5 8.5A3.5 3.5 0 0 0 8 10c0 4 7 2 7 6a3.5 3.5 0 0 1-6.5 1.5M12 5v2m0 10v2'],
+                                'riego'       => ['bg-sky-50 text-sky-700', 'M12 3.5s-6 6.4-6 10.5a6 6 0 0 0 12 0c0-4.1-6-10.5-6-10.5Z'],
+                                'fenologia'   => ['bg-violet-50 text-violet-700', 'M12 21V10m0 0c0-4 3-6.5 7-6.5 0 4-3 6.5-7 6.5Zm0 3c0-3-2.5-5-6-5 0 3 2.5 5 6 5Z'],
+                            ];
+                        @endphp
+                        <ol class="mt-2 pb-2">
+                            @foreach($actividad as $e)
+                                @php [$color, $trazo] = $iconos[$e['tipo']]; @endphp
+                                <li>
+                                    <a href="{{ $e['url'] }}" wire:navigate class="flex items-center gap-3 px-5 py-2.5 transition-colors hover:bg-stone-50">
+                                        <span class="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg {{ $color }}">
+                                            <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true"><path d="{{ $trazo }}"/></svg>
+                                        </span>
+                                        <div class="min-w-0 flex-1">
+                                            <p class="truncate text-sm font-medium text-stone-800">{{ $e['titulo'] }}</p>
+                                            <p class="truncate text-xs text-stone-500">{{ $e['detalle'] }}</p>
+                                        </div>
+                                        <time class="cifra shrink-0 text-xs text-stone-400" datetime="{{ $e['fecha']->toDateString() }}">{{ $e['fecha']->format('d/m') }}</time>
+                                    </a>
+                                </li>
+                            @endforeach
+                        </ol>
+                    @endif
+                </section>
             </div>
-        </div>
 
-        {{-- Acciones rápidas --}}
-        <div class="bg-white rounded-xl border border-stone-200 p-6">
-            <p class="text-xs font-semibold text-stone-400 uppercase tracking-widest mb-4">Acciones rápidas</p>
-            <div class="flex flex-wrap gap-2.5">
-                <a href="{{ route('vinedo.fincas.create') }}" wire:navigate
-                    class="inline-flex items-center gap-2 px-3.5 py-2 bg-green-700 text-white text-sm font-medium rounded-lg hover:bg-green-800 transition duration-150">
-                    <svg class="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4"/>
-                    </svg>
-                    Nueva finca
-                </a>
-                <a href="{{ route('tratamientos.index') }}" wire:navigate
-                    class="inline-flex items-center gap-2 px-3.5 py-2 bg-amber-50 text-amber-700 text-sm font-medium rounded-lg border border-amber-200 hover:bg-amber-100 transition duration-150">
-                    Registrar tratamiento
-                </a>
-                <a href="{{ route('costes.index') }}" wire:navigate
-                    class="inline-flex items-center gap-2 px-3.5 py-2 bg-yellow-50 text-yellow-700 text-sm font-medium rounded-lg border border-yellow-200 hover:bg-yellow-100 transition duration-150">
-                    Añadir coste
-                </a>
-                <a href="{{ route('cuaderno.index') }}" wire:navigate
-                    class="inline-flex items-center gap-2 px-3.5 py-2 bg-teal-50 text-teal-700 text-sm font-medium rounded-lg border border-teal-200 hover:bg-teal-100 transition duration-150">
-                    <svg class="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
-                    </svg>
-                    Exportar CUE
-                </a>
-            </div>
-        </div>
+            {{-- ── Columna lateral: la campaña y lo más usado ─────────────────────────────────── --}}
+            <aside class="space-y-6 lg:col-span-2">
+                <section class="rounded-2xl bg-white p-5 ring-1 ring-stone-200/80 shadow-[0_1px_2px_rgb(28_25_23/0.04)]" aria-labelledby="campana">
+                    <div class="flex items-baseline justify-between gap-2">
+                        <h2 id="campana" class="text-base font-semibold text-stone-900">Campaña {{ $cifras['anio'] }}</h2>
+                        <span class="cifra text-xs text-stone-500">{{ $num($superficie, 2) }} ha en {{ $fincas->count() === 1 ? '1 finca' : $fincas->count() . ' fincas' }}</span>
+                    </div>
 
-    </div>
+                    @if($campana && $campana['fase'])
+                        <div class="mt-4">
+                            <p class="text-sm text-stone-600">
+                                <span class="font-semibold text-stone-900">{{ $campana['fase']['nombre'] }}</span>
+                                @if($campana['observado'])
+                                    · observada el {{ $campana['observado']->fecha_observacion->format('d/m') }} (BBCH {{ $campana['observado']->estado?->codigo_bbch }})
+                                @else
+                                    · estimada para {{ $campana['variedad'] }}
+                                @endif
+                            </p>
+                            {{-- El año de la viña: fases esperadas y dónde estamos hoy --}}
+                            <div class="relative mt-3 pt-5">
+                                @if($campana['hoy'] !== null)
+                                    <span class="absolute top-0 -translate-x-1/2 text-[10px] font-semibold uppercase tracking-wide text-stone-700" style="left: {{ $campana['hoy'] }}%">Hoy</span>
+                                @endif
+                                <div class="relative flex h-3 overflow-hidden rounded-full ring-1 ring-black/5">
+                                    @foreach($campana['bandas'] as $b)
+                                        <span class="h-full" style="width: {{ $b['ancho'] }}%; background: {{ $b['color'] }}" title="{{ $b['titulo'] }}"></span>
+                                    @endforeach
+                                </div>
+                                @if($campana['hoy'] !== null)
+                                    <span class="absolute bottom-[-3px] top-4 w-0.5 -translate-x-1/2 rounded-full bg-stone-900" style="left: {{ $campana['hoy'] }}%" aria-hidden="true"></span>
+                                @endif
+                                <div class="mt-1.5 flex justify-between text-[10px] text-stone-400" aria-hidden="true">
+                                    @foreach($campana['meses'] as $i => $m)
+                                        @if($i % 2 === 0)<span>{{ $m['nombre'] }}</span>@endif
+                                    @endforeach
+                                </div>
+                            </div>
+                        </div>
+                    @endif
+
+                    <dl class="mt-5 grid grid-cols-2 gap-px overflow-hidden rounded-xl bg-stone-200/70 ring-1 ring-stone-200/70">
+                        <div class="bg-white p-3.5">
+                            <dt class="text-xs text-stone-500">Tratamientos</dt>
+                            <dd class="cifra mt-1 text-lg font-semibold text-stone-900">{{ $cifras['tratamientos'] }}</dd>
+                        </div>
+                        <div class="bg-white p-3.5">
+                            <dt class="text-xs text-stone-500">Gastos</dt>
+                            <dd class="cifra mt-1 text-lg font-semibold text-stone-900">{{ $eur($cifras['gastos']) }}</dd>
+                            @if($cifras['generales'] > 0)
+                                <dd class="cifra text-[11px] text-stone-500">{{ $eur($cifras['generales']) }} generales</dd>
+                            @endif
+                        </div>
+                        <div class="bg-white p-3.5">
+                            <dt class="text-xs text-stone-500">Agua de riego</dt>
+                            <dd class="cifra mt-1 text-lg font-semibold text-stone-900">{{ $num($cifras['agua']) }} m³</dd>
+                        </div>
+                        <div class="bg-white p-3.5">
+                            <dt class="text-xs text-stone-500">Grados-día desde abril</dt>
+                            <dd class="cifra mt-1 text-lg font-semibold text-stone-900">{{ $cifras['gdd'] !== null ? $num($cifras['gdd']) : '—' }}</dd>
+                            @if($cifras['gdd'] === null)
+                                <dd class="text-[11px] text-stone-500">Sin estación o sin viña</dd>
+                            @endif
+                        </div>
+                    </dl>
+                </section>
+
+                <section class="rounded-2xl bg-white p-5 ring-1 ring-stone-200/80 shadow-[0_1px_2px_rgb(28_25_23/0.04)]" aria-labelledby="anotar">
+                    <h2 id="anotar" class="text-base font-semibold text-stone-900">Anotar en {{ $nombreFinca($finca) }}</h2>
+                    <div class="mt-3 grid grid-cols-2 gap-2">
+                        <a href="{{ route('tratamientos.finca.create', $finca) }}" wire:navigate
+                            class="pulsable col-span-2 flex items-center justify-center gap-2 rounded-lg bg-green-700 px-3 py-2.5 text-sm font-semibold text-white hover:bg-green-800">
+                            <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" d="M12 5v14M5 12h14"/></svg>
+                            Tratamiento
+                        </a>
+                        <a href="{{ route('costes.finca.create', $finca) }}" wire:navigate
+                            class="pulsable rounded-lg px-3 py-2 text-center text-sm font-medium text-stone-700 ring-1 ring-stone-200 hover:bg-stone-50 hover:text-stone-900">Gasto</a>
+                        @if($finca->parcelas->contains(fn ($p) => $p->esRegable()))
+                            <a href="{{ route('riegos.create', $finca) }}" wire:navigate
+                                class="pulsable rounded-lg px-3 py-2 text-center text-sm font-medium text-stone-700 ring-1 ring-stone-200 hover:bg-stone-50 hover:text-stone-900">Riego</a>
+                        @endif
+                        <a href="{{ route('fenologia.index') }}" wire:navigate
+                            class="pulsable rounded-lg px-3 py-2 text-center text-sm font-medium text-stone-700 ring-1 ring-stone-200 hover:bg-stone-50 hover:text-stone-900">Fenología</a>
+                        <a href="{{ route('cuaderno.index', ['finca' => $finca->id]) }}" wire:navigate
+                            class="pulsable rounded-lg px-3 py-2 text-center text-sm font-medium text-stone-700 ring-1 ring-stone-200 hover:bg-stone-50 hover:text-stone-900">Cuaderno</a>
+                    </div>
+                </section>
+            </aside>
+        </div>
+    @endif
 </x-app-layout>
