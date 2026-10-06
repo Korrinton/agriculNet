@@ -14,6 +14,8 @@ class CosteController extends Controller
 
     public function index(Parcela $parcela): JsonResponse
     {
+        $this->authorize('view', $parcela->finca);
+
         return response()->json(
             $parcela->costes()->with('categoria')->latest('fecha')->paginate(20)
         );
@@ -21,6 +23,8 @@ class CosteController extends Controller
 
     public function store(Request $request, Parcela $parcela): JsonResponse
     {
+        $this->authorize('update', $parcela->finca);
+
         $data = $request->validate([
             'categoria_id' => 'required|exists:categoria_costes,id',
             'fecha'        => 'required|date',
@@ -37,6 +41,8 @@ class CosteController extends Controller
 
     public function resumen(Request $request, Parcela $parcela): JsonResponse
     {
+        $this->authorize('view', $parcela->finca);
+
         $año = $request->integer('año', now()->year);
 
         return response()->json([

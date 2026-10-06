@@ -32,17 +32,7 @@
     <div class="py-8">
         <div class="max-w-7xl mx-auto sm:px-6 lg:px-8 space-y-6">
 
-            @if(session('success'))
-                <div class="p-4 bg-green-50 border border-green-200 text-green-700 rounded-lg">
-                    {{ session('success') }}
-                </div>
-            @endif
 
-            @if(session('error'))
-                <div class="p-4 bg-red-50 border border-red-200 text-red-700 rounded-lg">
-                    {{ session('error') }}
-                </div>
-            @endif
 
             {{-- Alertas activas --}}
             @if($parcela->alertas->isNotEmpty())
@@ -131,7 +121,8 @@
 
                     {{-- Mini-mapa SIGPAC --}}
                     @if($sigpacData)
-                        <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+                        <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden" data-pagina="mapa-parcela">
+                            <script type="application/json" data-datos>@json(['apiUrl' => $sigpacData['apiUrl']])</script>
                             <div id="mini-map" class="w-full" style="height: 220px;"></div>
                         </div>
                     @endif
@@ -173,11 +164,17 @@
                                             <div class="text-right">
                                                 <p class="text-xs font-mono text-gray-600">{{ $t->fecha->format('d/m/Y') }}</p>
                                                 @if($t->dosis_l_ha)
-                                                    <p class="text-xs text-gray-400">{{ number_format($t->dosis_l_ha, 2) }} l/ha</p>
+                                                    <p class="text-xs text-gray-400">{{ number_format($t->dosis_l_ha, 2) }} {{ $t->unidadDosis() }}</p>
                                                 @endif
                                             </div>
+                                            <a href="{{ route('tratamientos.edit', $t) }}" wire:navigate
+                                                class="text-gray-300 hover:text-green-600 transition" title="Editar">
+                                                <svg class="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536M9 13l6.232-6.232a2.5 2.5 0 113.536 3.536L12.536 16.536 9 17l.464-3.536z"/>
+                                                </svg>
+                                            </a>
                                             <form method="POST" action="{{ route('tratamientos.destroy', $t) }}"
-                                                onsubmit="return confirm('¿Eliminar este tratamiento?')">
+                                                data-confirmar="¿Eliminar este tratamiento?">
                                                 @csrf @method('DELETE')
                                                 <button type="submit" class="text-gray-300 hover:text-red-500 transition" title="Eliminar">
                                                     <svg class="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -226,7 +223,7 @@
                                                 <p class="text-xs text-gray-400">{{ $c->fecha->format('d/m/Y') }}</p>
                                             </div>
                                             <form method="POST" action="{{ route('costes.destroy', $c) }}"
-                                                onsubmit="return confirm('¿Eliminar este coste?')">
+                                                data-confirmar="¿Eliminar este coste?">
                                                 @csrf @method('DELETE')
                                                 <button type="submit" class="text-gray-300 hover:text-red-500 transition" title="Eliminar">
                                                     <svg class="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -284,7 +281,7 @@
                                                 {{ $r->fecha_observacion->format('d/m/Y') }}
                                             </p>
                                             <form method="POST" action="{{ route('fenologia.destroy', $r) }}"
-                                                onsubmit="return confirm('¿Eliminar esta observación?')">
+                                                data-confirmar="¿Eliminar esta observación?">
                                                 @csrf @method('DELETE')
                                                 <button type="submit" class="text-gray-300 hover:text-red-500 transition" title="Eliminar">
                                                     <svg class="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -305,35 +302,4 @@
         </div>
     </div>
 
-    @if($sigpacData)
-        @assets
-        <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-        <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-        @endassets
-
-        <script>
-        (function () {
-            const apiUrl  = @json($sigpacData['apiUrl']);
-            const container = document.getElementById('mini-map');
-
-            const pnoaLayer = L.tileLayer(
-                'https://www.ign.es/wmts/pnoa-ma?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0&LAYER=OI.OrthoimageCoverage&STYLE=default&TILEMATRIXSET=GoogleMapsCompatible&TILEMATRIX={z}&TILEROW={y}&TILECOL={x}&FORMAT=image%2Fpng',
-                { attribution: '© IGN España', maxZoom: 20 }
-            );
-            const map = L.map(container, { center: [39.5, -3.0], zoom: 13, layers: [pnoaLayer], zoomControl: false, attributionControl: false });
-
-            fetch(apiUrl, { credentials: 'same-origin' })
-                .then(r => r.ok ? r.json() : null)
-                .then(geojson => {
-                    if (!geojson || geojson.error) return;
-                    const layer = L.geoJSON(geojson, {
-                        style: { color: '#16a34a', weight: 2.5, fillColor: '#4ade80', fillOpacity: 0.4 }
-                    }).addTo(map);
-                    const bounds = layer.getBounds();
-                    if (bounds.isValid()) map.fitBounds(bounds, { padding: [20, 20], maxZoom: 18 });
-                })
-                .catch(() => {});
-        })();
-        </script>
-    @endif
 </x-app-layout>

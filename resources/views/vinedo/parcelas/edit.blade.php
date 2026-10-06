@@ -14,7 +14,7 @@
 
     {{-- Formulario de eliminación --}}
     <form id="form-delete" method="POST" action="{{ route('vinedo.parcelas.destroy', $parcela) }}"
-        onsubmit="return confirm('¿Eliminar esta parcela? Esta acción no se puede deshacer.')">
+        data-confirmar="¿Eliminar esta parcela? Esta acción no se puede deshacer.">
         @csrf
         @method('DELETE')
     </form>

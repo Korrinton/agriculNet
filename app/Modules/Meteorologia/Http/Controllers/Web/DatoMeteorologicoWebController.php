@@ -3,6 +3,7 @@
 namespace App\Modules\Meteorologia\Http\Controllers\Web;
 
 use App\Http\Controllers\Controller;
+use App\Modules\CalendarioFenologico\Jobs\RecalcularGradosDia;
 use App\Modules\Meteorologia\Jobs\ImportarDatosMeteorologicos;
 use App\Modules\Meteorologia\Models\DatoMeteorologico;
 use App\Modules\Meteorologia\Models\EstacionMeteorologica;
@@ -23,6 +24,7 @@ class DatoMeteorologicoWebController extends Controller
         ]);
 
         $finca->update(['estacion_meteorologica_id' => $validated['estacion_id']]);
+        RecalcularGradosDia::paraFinca($finca->id, now()->year);
 
         return back()->with('success', 'Estación meteorológica vinculada correctamente.');
     }
@@ -32,6 +34,7 @@ class DatoMeteorologicoWebController extends Controller
     {
         $this->authorize('update', $finca);
         $finca->update(['estacion_meteorologica_id' => null]);
+        RecalcularGradosDia::paraFinca($finca->id, now()->year);
 
         return back()->with('success', 'Estación desvinculada.');
     }
@@ -92,6 +95,7 @@ class DatoMeteorologicoWebController extends Controller
             ['estacion_id' => $finca->estacion_meteorologica_id, 'fecha' => $validated['fecha']],
             array_merge($validated, ['estacion_id' => $finca->estacion_meteorologica_id]),
         );
+        RecalcularGradosDia::paraEstacion($finca->estacion_meteorologica_id, Carbon::parse($validated['fecha'])->year);
 
         return back()->with('success', 'Dato meteorológico guardado.');
     }
@@ -102,6 +106,7 @@ class DatoMeteorologicoWebController extends Controller
         abort_unless($dato->estacion_id === $finca->estacion_meteorologica_id, 403);
         abort_if($finca->estacion?->fuente === 'aemet', 403, 'Los datos de AEMET son compartidos y no se pueden borrar.');
         $dato->delete();
+        RecalcularGradosDia::paraEstacion($dato->estacion_id, $dato->fecha->year);
 
         return back()->with('success', 'Dato eliminado.');
     }

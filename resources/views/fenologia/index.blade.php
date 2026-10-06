@@ -21,11 +21,6 @@
     <div class="py-8">
         <div class="max-w-7xl mx-auto sm:px-6 lg:px-8 space-y-6">
 
-            @if(session('success'))
-                <div class="p-4 bg-green-50 border border-green-200 text-green-700 rounded-lg">
-                    {{ session('success') }}
-                </div>
-            @endif
 
             @if($otrasParcelas > 0)
                 <div class="p-3 bg-stone-50 border border-stone-200 text-stone-600 rounded-lg text-sm">
@@ -279,7 +274,7 @@
                                         </td>
                                         <td class="px-3 py-3 text-right">
                                             <form method="POST" action="{{ route('fenologia.destroy', $r) }}"
-                                                onsubmit="return confirm('¿Eliminar esta observación?')">
+                                                data-confirmar="¿Eliminar esta observación?">
                                                 @csrf @method('DELETE')
                                                 <button type="submit"
                                                     class="text-gray-300 hover:text-red-500 transition" title="Eliminar">

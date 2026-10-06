@@ -17,7 +17,7 @@
                     Modificar finca
                 </a>
                 <form method="POST" action="{{ route('vinedo.fincas.destroy', $finca) }}"
-                    onsubmit="return confirm('¿Eliminar esta finca y todas sus parcelas? Esta acción no se puede deshacer.')">
+                    data-confirmar="¿Eliminar esta finca y todas sus parcelas? Esta acción no se puede deshacer.">
                     @csrf
                     @method('DELETE')
                     <button type="submit"
@@ -32,17 +32,7 @@
     <div class="py-8">
         <div class="max-w-7xl mx-auto sm:px-6 lg:px-8 space-y-6">
 
-            @if(session('success'))
-                <div class="p-4 bg-green-50 border border-green-200 text-green-700 rounded-lg">
-                    {{ session('success') }}
-                </div>
-            @endif
 
-            @if(session('error'))
-                <div class="p-4 bg-red-50 border border-red-200 text-red-700 rounded-lg">
-                    {{ session('error') }}
-                </div>
-            @endif
 
             <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
 
@@ -83,6 +73,85 @@
                                 <dd class="text-sm text-gray-700">{{ $finca->parcelas->count() }}</dd>
                             </div>
                         </dl>
+                    </div>
+
+                    {{-- Tratamientos: lo habitual es tratar la finca entera de una vez --}}
+                    @if($finca->parcelas->isNotEmpty())
+                        <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
+                            <h3 class="font-semibold text-gray-800 text-sm mb-3">Tratamiento fitosanitario</h3>
+                            <div class="flex flex-col gap-2">
+                                <a href="{{ route('tratamientos.finca.create', $finca) }}" wire:navigate
+                                    class="inline-flex items-center justify-center gap-1.5 px-3 py-2 text-sm font-medium text-white bg-green-700 rounded-lg hover:bg-green-800 transition">
+                                    <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+                                    </svg>
+                                    Tratar toda la finca
+                                </a>
+                                <a href="{{ route('tratamientos.finca.create', [$finca, 'elegir' => 1]) }}" wire:navigate
+                                    class="inline-flex items-center justify-center px-3 py-2 text-sm font-medium text-green-700 border border-green-200 rounded-lg hover:bg-green-50 transition">
+                                    Elegir parcelas
+                                </a>
+                            </div>
+                            <p class="mt-2 text-xs text-gray-400">Se anota el tratamiento en cada parcela, como exige el cuaderno de explotación.</p>
+                        </div>
+                    @endif
+
+                    {{-- Gastos: los generales se anotan una vez para la finca, sin repartirlos entre las parcelas --}}
+                    @php
+                        $generales = $costesAño->whereNull('parcela_id');
+                        $deParcelas = $costesAño->whereNotNull('parcela_id');
+                        $eur = fn ($v) => number_format((float) $v, 2, ',', '.') . ' €';
+                    @endphp
+                    <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
+                        <div class="flex items-center justify-between mb-3">
+                            <h3 class="font-semibold text-gray-800 text-sm">Gastos {{ now()->year }}</h3>
+                            <a href="{{ route('costes.index', ['finca' => $finca->id]) }}" wire:navigate
+                                class="text-xs text-gray-500 hover:text-gray-800">Ver todos</a>
+                        </div>
+                        <dl class="space-y-1.5 text-sm mb-3">
+                            <div class="flex justify-between">
+                                <dt class="text-gray-500">Generales de la finca</dt>
+                                <dd class="font-medium text-gray-800">{{ $eur($generales->sum('importe')) }}</dd>
+                            </div>
+                            <div class="flex justify-between">
+                                <dt class="text-gray-500">De las parcelas</dt>
+                                <dd class="font-medium text-gray-800">{{ $eur($deParcelas->sum('importe')) }}</dd>
+                            </div>
+                            <div class="flex justify-between border-t border-gray-50 pt-1.5">
+                                <dt class="text-gray-700 font-medium">Total</dt>
+                                <dd class="font-semibold text-gray-900">{{ $eur($costesAño->sum('importe')) }}</dd>
+                            </div>
+                        </dl>
+                        @if($generales->isNotEmpty())
+                            <ul class="divide-y divide-gray-50 border-t border-gray-100 mb-3">
+                                @foreach($generales->take(5) as $c)
+                                    <li class="py-2 flex items-center justify-between gap-2 text-xs">
+                                        <div class="min-w-0">
+                                            <p class="text-gray-800 truncate">{{ $c->descripcion ?: ($c->categoria?->nombre ?? 'Gasto') }}</p>
+                                            <p class="text-gray-400">{{ $c->fecha->format('d/m/Y') }} · {{ $c->categoria?->nombre }}</p>
+                                        </div>
+                                        <div class="flex items-center gap-2 shrink-0">
+                                            <span class="font-medium text-gray-700">{{ $eur($c->importe) }}</span>
+                                            <form method="POST" action="{{ route('costes.destroy', $c) }}" data-confirmar="¿Eliminar este gasto?">
+                                                @csrf @method('DELETE')
+                                                <button type="submit" class="text-gray-300 hover:text-red-500" title="Eliminar">
+                                                    <svg class="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                                                    </svg>
+                                                </button>
+                                            </form>
+                                        </div>
+                                    </li>
+                                @endforeach
+                            </ul>
+                        @endif
+                        <a href="{{ route('costes.finca.create', $finca) }}" wire:navigate
+                            class="flex items-center justify-center gap-1.5 px-3 py-2 text-sm font-medium text-green-700 border border-green-200 rounded-lg hover:bg-green-50 transition">
+                            <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+                            </svg>
+                            Añadir gasto de la finca
+                        </a>
                     </div>
 
                     {{-- Parcelas --}}
@@ -138,6 +207,8 @@
                                                         SIGPAC ↗
                                                     </a>
                                                 @endif
+                                                <a href="{{ route('tratamientos.create', $parcela) }}" wire:navigate
+                                                    class="text-xs text-green-600 hover:text-green-800 font-medium">+ Tratamiento</a>
                                                 <a href="{{ route('vinedo.parcelas.show', $parcela) }}" wire:navigate
                                                     class="text-xs text-gray-600 hover:text-gray-900 font-medium">Ver</a>
                                                 <a href="{{ route('vinedo.parcelas.edit', $parcela) }}" wire:navigate
@@ -154,7 +225,8 @@
 
                 {{-- Columna derecha: mapa SIGPAC + meteorología --}}
                 <div class="lg:col-span-2 space-y-6">
-                    <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+                    <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden" data-pagina="mapa-finca">
+                        <script type="application/json" data-datos>@json(['parcelas' => $parcelasConSigpac])</script>
                         <div class="p-4 border-b border-gray-100 flex items-center justify-between">
                             <div class="flex items-center gap-2">
                                 <h3 class="font-semibold text-gray-800 text-sm">Visor SIGPAC</h3>
@@ -167,9 +239,9 @@
                                 @endif
                             </div>
                             <div class="flex gap-1 text-xs text-gray-400">
-                                <button onclick="setLayer('pnoa')" id="btn-pnoa"
+                                <button type="button" data-capa="pnoa" id="btn-pnoa"
                                     class="px-2 py-1 rounded bg-gray-100 hover:bg-gray-200 transition">Foto aérea</button>
-                                <button onclick="setLayer('osm')" id="btn-osm"
+                                <button type="button" data-capa="osm" id="btn-osm"
                                     class="px-2 py-1 rounded hover:bg-gray-100 transition">Mapa</button>
                             </div>
                         </div>
@@ -212,7 +284,7 @@
                                         @endif
                                         {{-- Añadir manual (los datos AEMET son compartidos y no se editan) --}}
                                         @unless($finca->estacion->fuente === 'aemet')
-                                            <button onclick="document.getElementById('form-meteo').classList.toggle('hidden')"
+                                            <button type="button" data-alternar="#form-meteo"
                                                 class="inline-flex items-center gap-1 text-xs text-green-600 hover:text-green-800 font-medium">
                                                 <svg class="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
@@ -241,7 +313,7 @@
                                         @endif
                                     </div>
                                     <form method="POST" action="{{ route('meteorologia.datos.desvincular', $finca) }}"
-                                        onsubmit="return confirm('¿Desvincular la estación?')">
+                                        data-confirmar="¿Desvincular la estación?">
                                         @csrf
                                         @method('DELETE')
                                         <button type="submit" class="text-xs text-gray-400 hover:text-red-500">Desvincular</button>
@@ -290,7 +362,7 @@
                                         Ejecuta <code class="font-mono bg-gray-100 px-1 rounded">php artisan aemet:importar-estaciones</code> para cargarlas.
                                     </p>
                                     <div class="mt-2">
-                                        <button onclick="document.getElementById('form-meteo').classList.toggle('hidden')"
+                                        <button type="button" data-alternar="#form-meteo"
                                             class="text-xs text-green-600 hover:text-green-800 font-medium">
                                             + Añadir dato manual
                                         </button>
@@ -340,7 +412,7 @@
                                 </div>
                                 @error('temp_min') <p class="mt-2 text-xs text-red-600">{{ $message }}</p> @enderror
                                 <div class="mt-3 flex justify-end gap-2">
-                                    <button type="button" onclick="document.getElementById('form-meteo').classList.add('hidden')"
+                                    <button type="button" data-ocultar="#form-meteo"
                                         class="px-3 py-1.5 text-xs text-gray-600 bg-white border border-gray-200 rounded-lg hover:bg-gray-50">
                                         Cancelar
                                     </button>
@@ -396,7 +468,7 @@
                                                     @unless($finca->estacion?->fuente === 'aemet')
                                                         <form method="POST"
                                                             action="{{ route('meteorologia.datos.destroy', [$finca, $dato]) }}"
-                                                            onsubmit="return confirm('¿Eliminar este dato?')">
+                                                            data-confirmar="¿Eliminar este dato?">
                                                             @csrf @method('DELETE')
                                                             <button type="submit" class="text-gray-300 hover:text-red-500 transition" title="Eliminar">
                                                                 <svg class="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -433,81 +505,5 @@
         </div>
     </div>
 
-    @assets
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    @endassets
 
-    <script>
-    (function () {
-        const parcelasConSigpac = @json($parcelasConSigpac);
-
-        const container = document.getElementById('sigpac-map');
-        if (container._leaflet_id != null) {
-            container._leaflet_id = null;
-        }
-
-        const pnoaLayer = L.tileLayer(
-            'https://www.ign.es/wmts/pnoa-ma?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0&LAYER=OI.OrthoimageCoverage&STYLE=default&TILEMATRIXSET=GoogleMapsCompatible&TILEMATRIX={z}&TILEROW={y}&TILECOL={x}&FORMAT=image%2Fpng',
-            { attribution: '© IGN España', maxZoom: 20 }
-        );
-        const osmLayer = L.tileLayer(
-            'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
-            { attribution: '© OpenStreetMap', maxZoom: 19 }
-        );
-        const map = L.map('sigpac-map', { center: [39.5, -3.0], zoom: 8, layers: [pnoaLayer] });
-
-        window.setLayer = function (name) {
-            if (name === 'pnoa') {
-                map.removeLayer(osmLayer); map.addLayer(pnoaLayer);
-                document.getElementById('btn-pnoa').classList.add('bg-gray-100');
-                document.getElementById('btn-osm').classList.remove('bg-gray-100');
-            } else {
-                map.removeLayer(pnoaLayer); map.addLayer(osmLayer);
-                document.getElementById('btn-osm').classList.add('bg-gray-100');
-                document.getElementById('btn-pnoa').classList.remove('bg-gray-100');
-            }
-        };
-
-        if (parcelasConSigpac.length > 0) {
-            const loading = document.getElementById('map-loading');
-            loading.classList.remove('hidden');
-
-            const allBounds = [];
-            let failedCount = 0;
-
-            const promises = parcelasConSigpac.map(p =>
-                fetch(p.sigpacUrl, { credentials: 'same-origin' })
-                    .then(r => {
-                        if (!r.ok) throw new Error('HTTP ' + r.status);
-                        return r.json();
-                    })
-                    .then(geojson => {
-                        if (!geojson || geojson.error) throw new Error('sin geometría');
-                        const layer = L.geoJSON(geojson, {
-                            style: { color: '#16a34a', weight: 2.5, fillColor: '#4ade80', fillOpacity: 0.35 }
-                        }).addTo(map);
-                        layer.bindTooltip(p.nombre, { permanent: false, direction: 'top' });
-                        const bounds = layer.getBounds();
-                        if (bounds.isValid()) allBounds.push(bounds);
-                    })
-                    .catch(err => {
-                        failedCount++;
-                        console.warn('SIGPAC: no se pudo cargar "' + p.nombre + '"', err);
-                    })
-            );
-
-            Promise.all(promises).then(() => {
-                loading.classList.add('hidden');
-                if (allBounds.length > 0) {
-                    const combined = allBounds.reduce((acc, b) => acc.extend(b));
-                    map.fitBounds(combined, { padding: [40, 40], maxZoom: 18 });
-                }
-                if (failedCount > 0) {
-                    console.warn('SIGPAC: ' + failedCount + ' de ' + parcelasConSigpac.length + ' parcela(s) sin geometría en la API.');
-                }
-            });
-        }
-    })();
-    </script>
 </x-app-layout>

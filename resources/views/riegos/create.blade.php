@@ -21,7 +21,7 @@
                     <p class="text-sm text-gray-400">Todas son de secano. Si alguna se riega, cambia su uso en «Editar parcela».</p>
                 </div>
             @else
-                <form method="POST" action="{{ route('riegos.store', $finca) }}" class="bg-white rounded-xl shadow-sm border border-gray-100 p-6 space-y-5">
+                <form method="POST" action="{{ route('riegos.store', $finca) }}" data-pagina="riego" class="bg-white rounded-xl shadow-sm border border-gray-100 p-6 space-y-5">
                     @csrf
 
                     <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -95,27 +95,6 @@
                     </div>
                 </form>
 
-                <script>
-                (function () {
-                    // Muestra la dosis resultante mientras se escribe (1 mm = 10 m³/ha)
-                    const parcela = document.getElementById('parcela_id');
-                    const volumen = document.getElementById('volumen_m3');
-                    const superficie = document.getElementById('superficie_ha');
-                    const salida = document.getElementById('dosis');
-
-                    function actualizar() {
-                        const ha = parseFloat(superficie.value) || parseFloat(parcela.selectedOptions[0]?.dataset.superficie);
-                        const m3 = parseFloat(volumen.value);
-                        salida.textContent = ha > 0 && m3 > 0
-                            ? `Dosis: ${(m3 / ha).toLocaleString('es-ES', {maximumFractionDigits: 0})} m³/ha · ${(m3 / ha / 10).toLocaleString('es-ES', {maximumFractionDigits: 1})} mm`
-                            : '';
-                    }
-
-                    [parcela, volumen, superficie].forEach(el => el.addEventListener('input', actualizar));
-                    parcela.addEventListener('change', actualizar);
-                    actualizar();
-                })();
-                </script>
             @endif
         </div>
     </div>

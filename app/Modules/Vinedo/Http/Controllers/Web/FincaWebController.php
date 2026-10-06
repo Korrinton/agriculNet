@@ -122,8 +122,12 @@ class FincaWebController extends Controller
         $cercanas->ubicar($finca);
         $estacionesAemet = $finca->estacion ? collect() : $cercanas->para($finca);
 
+        // Gastos del año: los generales de la finca (sin parcela) y los imputados a sus parcelas
+        $costesAño = $finca->costes()->whereYear('fecha', now()->year)->with('categoria')->latest('fecha')->latest('id')->get();
+
         return view('vinedo.fincas.show', [
             'finca'             => $finca,
+            'costesAño'         => $costesAño,
             'parcelasConSigpac' => $parcelasConSigpac,
             'datosMeteoro'      => $datosMeteoro,
             'estacionesAemet'   => $estacionesAemet,

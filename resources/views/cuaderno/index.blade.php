@@ -14,7 +14,7 @@
             @if($datos)
                 <div class="flex flex-wrap items-center gap-2">
                     <form method="GET" action="{{ route('cuaderno.index') }}" class="flex items-center gap-2">
-                        <select name="finca" onchange="this.form.submit()"
+                        <select name="finca" data-autoenviar
                             class="text-sm border-gray-300 rounded-lg focus:ring-green-500 focus:border-green-500">
                             @foreach($fincas as $f)
                                 <option value="{{ $f->id }}" {{ $f->id === $datos['finca']->id ? 'selected' : '' }}>
@@ -22,7 +22,7 @@
                                 </option>
                             @endforeach
                         </select>
-                        <select name="anio" onchange="this.form.submit()"
+                        <select name="anio" data-autoenviar
                             class="text-sm border-gray-300 rounded-lg focus:ring-green-500 focus:border-green-500">
                             @foreach($campanas as $a)
                                 <option value="{{ $a }}" {{ $a === $datos['anio'] ? 'selected' : '' }}>Campaña {{ $a }}</option>
@@ -45,9 +45,6 @@
     <div class="py-8">
         <div class="max-w-7xl mx-auto sm:px-6 lg:px-8 space-y-6">
 
-            @if(session('success'))
-                <div class="p-4 bg-green-50 border border-green-200 text-green-700 rounded-lg">{{ session('success') }}</div>
-            @endif
 
             @if(! $datos)
                 <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-12 text-center">
@@ -114,7 +111,7 @@
                     <div class="px-5 py-3 border-b border-gray-100 flex flex-wrap items-center justify-between gap-2">
                         <h3 class="font-semibold text-gray-800">2. Tratamientos fitosanitarios <span class="text-xs font-normal text-gray-400">({{ $datos['tratamientos']->count() }})</span></h3>
                         @if($datos['parcelas']->isNotEmpty())
-                            <select onchange="if (this.value) window.location = this.value"
+                            <select data-ir-a-valor
                                 class="text-xs border-gray-300 rounded-lg focus:ring-green-500 focus:border-green-500">
                                 <option value="">+ Nuevo tratamiento en…</option>
                                 @foreach($datos['parcelas'] as $p)
@@ -131,10 +128,11 @@
                                     <th class="px-4 py-2 text-left font-medium">Parcela</th>
                                     <th class="px-4 py-2 text-left font-medium">Problema</th>
                                     <th class="px-4 py-2 text-left font-medium">Producto (nº reg.)</th>
-                                    <th class="px-4 py-2 text-right font-medium">Dosis l/ha</th>
+                                    <th class="px-4 py-2 text-right font-medium">Dosis</th>
                                     <th class="px-4 py-2 text-right font-medium">Sup. ha</th>
                                     <th class="px-4 py-2 text-left font-medium">Aplicador (ROPO)</th>
-                                    <th class="px-4 py-2 text-left font-medium">Equipo ROMA</th>
+                                    <th class="px-4 py-2 text-left font-medium">Equipo</th>
+                                    <th class="px-4 py-2 text-left font-medium">Asesor (ROPO)</th>
                                     <th class="px-4 py-2 text-left font-medium">Eficacia</th>
                                 </tr>
                             </thead>
@@ -142,17 +140,24 @@
                                 @forelse($datos['tratamientos'] as $t)
                                     <tr>
                                         <td class="px-4 py-2 font-mono text-gray-600 whitespace-nowrap">{{ $t->fecha->format('d/m/Y') }}</td>
-                                        <td class="px-4 py-2 text-gray-800 whitespace-nowrap">{{ $t->parcela->etiqueta }}</td>
+                                        <td class="px-4 py-2 text-gray-800 whitespace-nowrap">
+                                            {{ $t->parcela->etiqueta }}
+                                            <span class="block text-xs font-mono {{ $t->bbch ? 'text-gray-400' : 'text-amber-600' }}">{{ $t->codigoEppo() ?? '¿cultivo?' }} · {{ $t->bbch ? 'BBCH ' . $t->bbch : 'sin BBCH' }}</span>
+                                        </td>
                                         <td class="px-4 py-2 text-gray-600">{{ $t->motivo ?: '—' }}</td>
                                         <td class="px-4 py-2 text-gray-800">{{ $t->producto?->nombre ?? '—' }} <span class="text-xs text-gray-400 font-mono">{{ $t->producto?->numero_registro }}</span></td>
-                                        <td class="px-4 py-2 text-right font-mono">{{ $num($t->dosis_l_ha, 3) }}</td>
+                                        <td class="px-4 py-2 text-right font-mono whitespace-nowrap">{{ $num($t->dosis_l_ha, 3) }} <span class="text-xs text-gray-400">{{ $t->unidadDosis() }}</span></td>
                                         <td class="px-4 py-2 text-right font-mono">{{ $num($t->superficie_tratada_ha ?? $t->parcela->superficie_ha, 2) }}</td>
                                         <td class="px-4 py-2 text-gray-600">{{ $t->aplicador_nombre ?: '—' }} <span class="text-xs font-mono {{ $t->aplicador_ropo ? 'text-gray-400' : 'text-amber-600' }}">{{ $t->aplicador_ropo ?: 'sin ROPO' }}</span></td>
-                                        <td class="px-4 py-2 font-mono text-xs text-gray-500">{{ $t->equipo_roma ?: '—' }}</td>
+                                        <td class="px-4 py-2 font-mono text-xs text-gray-500">
+                                            {{ $t->equipo_roma ?: '—' }}
+                                            <span class="block {{ $t->inspeccionEquipoCaducada() ? 'text-amber-600' : 'text-gray-400' }}">{{ $t->equipo_inspeccion_fecha ? 'ITEAF ' . $t->equipo_inspeccion_fecha->format('d/m/Y') : 'sin ITEAF' }}</span>
+                                        </td>
+                                        <td class="px-4 py-2 text-gray-600">{{ $t->asesor_nombre ?: '—' }} <span class="text-xs font-mono text-gray-400">{{ $t->asesor_ropo }}</span></td>
                                         <td class="px-4 py-2 text-gray-600">{{ Tratamiento::EFICACIAS[$t->eficacia] ?? '—' }}</td>
                                     </tr>
                                 @empty
-                                    <tr><td colspan="9" class="px-4 py-6 text-center text-gray-400">Sin tratamientos en {{ $datos['anio'] }}.</td></tr>
+                                    <tr><td colspan="10" class="px-4 py-6 text-center text-gray-400">Sin tratamientos en {{ $datos['anio'] }}.</td></tr>
                                 @endforelse
                             </tbody>
                         </table>
@@ -198,7 +203,7 @@
                                         <td class="px-4 py-2 text-right font-mono">{{ $num($f->superficie_ha, 2) }}</td>
                                         <td class="px-4 py-2 text-gray-600">{{ Fertilizacion::METODOS[$f->metodo] ?? '—' }}</td>
                                         <td class="px-3 py-2 text-right">
-                                            <form method="POST" action="{{ route('fertilizaciones.destroy', $f) }}" onsubmit="return confirm('¿Eliminar esta fertilización?')">
+                                            <form method="POST" action="{{ route('fertilizaciones.destroy', $f) }}" data-confirmar="¿Eliminar esta fertilización?">
                                                 @csrf @method('DELETE')
                                                 <button type="submit" class="text-gray-300 hover:text-red-500" title="Eliminar">✕</button>
                                             </form>
@@ -246,7 +251,7 @@
                                         <td class="px-4 py-2 text-gray-600">{{ $c->destino ?: '—' }} <span class="text-xs text-gray-400 font-mono">{{ $c->destinatario_nif }}</span></td>
                                         <td class="px-4 py-2 font-mono text-xs text-gray-500">{{ $c->albaran ?: '—' }}</td>
                                         <td class="px-3 py-2 text-right">
-                                            <form method="POST" action="{{ route('cosechas.destroy', $c) }}" onsubmit="return confirm('¿Eliminar esta cosecha?')">
+                                            <form method="POST" action="{{ route('cosechas.destroy', $c) }}" data-confirmar="¿Eliminar esta cosecha?">
                                                 @csrf @method('DELETE')
                                                 <button type="submit" class="text-gray-300 hover:text-red-500" title="Eliminar">✕</button>
                                             </form>

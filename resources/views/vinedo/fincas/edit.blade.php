@@ -14,7 +14,7 @@
 
     {{-- Formulario de eliminación (fuera del formulario de edición) --}}
     <form id="form-delete" method="POST" action="{{ route('vinedo.fincas.destroy', $finca) }}"
-        onsubmit="return confirm('¿Eliminar esta finca y todas sus parcelas? Esta acción no se puede deshacer.')">
+        data-confirmar="¿Eliminar esta finca y todas sus parcelas? Esta acción no se puede deshacer.">
         @csrf
         @method('DELETE')
     </form>

@@ -3,6 +3,7 @@
 namespace App\Modules\Vinedo\Models;
 
 use App\Models\User;
+use App\Modules\Costes\Models\Coste;
 use App\Modules\Meteorologia\Models\EstacionMeteorologica;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -104,6 +105,12 @@ class Finca extends Model
     public function estacion(): BelongsTo
     {
         return $this->belongsTo(EstacionMeteorologica::class, 'estacion_meteorologica_id');
+    }
+
+    /** Todos los gastos de la finca: los de sus parcelas y los generales (sin parcela). */
+    public function costes(): HasMany
+    {
+        return $this->hasMany(Coste::class);
     }
 
     public function parcelas(): HasMany

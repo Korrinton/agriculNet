@@ -3,6 +3,8 @@
 namespace Tests\Feature\CuadernoDigital;
 
 use App\Models\User;
+use App\Modules\CalendarioFenologico\Models\EstadoFenologico;
+use App\Modules\CalendarioFenologico\Models\RegistroFenologico;
 use App\Modules\CuadernoDigital\Models\Cosecha;
 use App\Modules\CuadernoDigital\Models\Fertilizacion;
 use App\Modules\Tratamientos\Models\ProductoFitosanitario;
@@ -38,6 +40,14 @@ class CuadernoTest extends TestCase
             'superficie_ha' => 1.9, 'agregado' => 0, 'poligono' => 70, 'parcela_sigpac' => 126, 'recinto' => 1,
         ]);
     }
+
+    /** Todo lo que el registro de tratamientos exige además de producto, fecha y dosis. */
+    private const DATOS_REGISTRO = [
+        'hora_inicio' => '08:30', 'bbch' => '57', 'cultivo_eppo' => 'VITVI', 'justificacion' => 'Recomendación del asesor',
+        'aplicador_nombre' => 'Ramón García', 'aplicador_nif' => '12345678Z', 'aplicador_ropo' => '0145-B-1234',
+        'equipo_roma' => 'ROMA-99', 'equipo_inspeccion_fecha' => '2025-02-01',
+        'asesor_nombre' => 'Lucía Pérez', 'asesor_nif' => '87654321X', 'asesor_ropo' => '0245-A-0001', 'asesor_fecha_validacion' => '2026-05-09',
+    ];
 
     // ── helpers ──────────────────────────────────────────────────────────────
 
@@ -109,7 +119,7 @@ class CuadernoTest extends TestCase
     public function test_con_todo_completo_no_hay_avisos(): void
     {
         $this->finca->update(['titular_nombre' => 'Ramón García', 'titular_nif' => '12345678z', 'rea_numero' => '45054000123']);
-        $this->tratamiento(['aplicador_ropo' => '0145-B-1234']);
+        $this->tratamiento(self::DATOS_REGISTRO);
         $this->fertilizacion(['fecha' => '2026-09-20']);
 
         $this->actingAs($this->user)->get(route('cuaderno.index'))
@@ -202,6 +212,65 @@ class CuadernoTest extends TestCase
         $this->assertSame(['1.2000', '0145-B-1234', 'ROMA-99', 'buena'], [$t->superficie_tratada_ha, $t->aplicador_ropo, $t->equipo_roma, $t->eficacia]);
     }
 
+    public function test_el_tratamiento_guarda_los_datos_del_registro_oficial(): void
+    {
+        $producto = ProductoFitosanitario::create(['nombre' => 'Cobre 50', 'numero_registro' => 'ES-1']);
+
+        $this->actingAs($this->user)->post(route('tratamientos.store', $this->parcela), [
+            'producto_id' => $producto->id, 'fecha' => '2026-05-10', 'dosis_l_ha' => 2,
+        ] + array_merge(self::DATOS_REGISTRO, ['aplicador_nif' => '12345678-z', 'cultivo_eppo' => 'XXXXX']))->assertSessionHasNoErrors();
+
+        $t = Tratamiento::sole();
+        $this->assertSame('08:30', $t->horaInicio());
+        $this->assertSame('57', $t->bbch);
+        $this->assertSame('VITVI', $t->cultivo_eppo, 'el cultivo lo pone la aplicación, no el formulario');
+        $this->assertSame('12345678Z', $t->aplicador_nif);
+        $this->assertSame(['Lucía Pérez', '87654321X', '0245-A-0001', '2026-05-09'],
+            [$t->asesor_nombre, $t->asesor_nif, $t->asesor_ropo, $t->asesor_fecha_validacion->toDateString()]);
+        $this->assertSame('2025-02-01', $t->equipo_inspeccion_fecha->toDateString());
+        $this->assertFalse($t->inspeccionEquipoCaducada());
+
+        $this->actingAs($this->user)->get(route('tratamientos.edit', $t))->assertOk()
+            ->assertSee('value="08:30"', false)
+            ->assertSee('value="2026-05-09"', false)
+            ->assertSee('VITVI');
+    }
+
+    public function test_el_estadio_se_toma_de_la_ultima_observacion_de_cada_parcela(): void
+    {
+        $olivar = Parcela::create([
+            'finca_id' => $this->finca->id, 'nombre' => 'Olivar', 'uso' => 'Olivar', 'superficie_ha' => 1,
+            'agregado' => 0, 'poligono' => 70, 'parcela_sigpac' => 127, 'recinto' => 1,
+        ]);
+        $observar = fn (string $bbch, string $fecha) => RegistroFenologico::create([
+            'parcela_id' => $this->parcela->id, 'user_id' => $this->user->id, 'fecha_observacion' => $fecha,
+            'estado_fenologico_id' => EstadoFenologico::firstOrCreate(['codigo_bbch' => $bbch], ['nombre' => "BBCH {$bbch}", 'orden' => (int) $bbch])->id,
+        ]);
+        $observar('53', '2026-04-20');
+        $observar('57', '2026-05-02');
+        $observar('65', '2026-05-20'); // posterior al tratamiento: no cuenta
+
+        $producto = ProductoFitosanitario::create(['nombre' => 'Azufre', 'numero_registro' => 'ES-2']);
+        $this->actingAs($this->user)->post(route('tratamientos.finca.store', $this->finca), [
+            'producto_id' => $producto->id, 'fecha' => '2026-05-10', 'dosis_l_ha' => 2,
+            'parcelas' => [$this->parcela->id, $olivar->id],
+        ])->assertSessionHasNoErrors();
+
+        $this->assertSame(['VITVI', '57'], [Tratamiento::where('parcela_id', $this->parcela->id)->value('cultivo_eppo'), Tratamiento::where('parcela_id', $this->parcela->id)->value('bbch')]);
+        $this->assertSame(['OLVEU', null], [Tratamiento::where('parcela_id', $olivar->id)->value('cultivo_eppo'), Tratamiento::where('parcela_id', $olivar->id)->value('bbch')]);
+    }
+
+    public function test_avisa_de_los_datos_del_registro_que_faltan(): void
+    {
+        $this->tratamiento(array_merge(self::DATOS_REGISTRO, ['bbch' => null, 'asesor_ropo' => null, 'equipo_inspeccion_fecha' => '2022-01-10']));
+
+        $this->actingAs($this->user)->get(route('cuaderno.index'))
+            ->assertSee('1 tratamiento no indica el estadio BBCH del cultivo.')
+            ->assertSee('1 tratamiento no indica el asesor que lo valida')
+            ->assertSee('sin inspección ITEAF en vigor')
+            ->assertDontSee('no indica el NIF del aplicador');
+    }
+
     public function test_la_superficie_tratada_no_puede_superar_la_de_la_parcela(): void
     {
         $producto = ProductoFitosanitario::create(['nombre' => 'Cobre 50']);
@@ -213,11 +282,15 @@ class CuadernoTest extends TestCase
 
     public function test_el_formulario_propone_el_ultimo_aplicador_de_la_finca(): void
     {
-        $this->tratamiento(['aplicador_nombre' => 'Ramón', 'aplicador_ropo' => '0145-B-1234', 'equipo_roma' => 'ROMA-99']);
+        $this->tratamiento(self::DATOS_REGISTRO);
 
         $this->actingAs($this->user)->get(route('tratamientos.create', $this->parcela))
             ->assertSee('value="0145-B-1234"', false)
-            ->assertSee('value="ROMA-99"', false);
+            ->assertSee('value="ROMA-99"', false)
+            ->assertSee('value="12345678Z"', false)
+            ->assertSee('value="2025-02-01"', false)
+            ->assertSee('value="0245-A-0001"', false)
+            ->assertDontSee('value="2026-05-09"', false); // la validación del asesor es de cada tratamiento
     }
 
     // ── exportación ──────────────────────────────────────────────────────────
@@ -225,7 +298,7 @@ class CuadernoTest extends TestCase
     public function test_exporta_a_excel_con_una_hoja_por_seccion(): void
     {
         $this->finca->update(['titular_nombre' => 'Ramón García', 'titular_nif' => '12345678Z']);
-        $this->tratamiento(['aplicador_ropo' => '0145-B-1234']);
+        $this->tratamiento(self::DATOS_REGISTRO);
         $this->fertilizacion();
         $this->cosecha();
 
@@ -242,9 +315,16 @@ class CuadernoTest extends TestCase
         $this->assertSame(['Datos generales', 'Tratamientos', 'Fertilización', 'Cosecha', 'Riego'], $libro->getSheetNames());
         $this->assertSame('Ramón García', $libro->getSheetByName('Datos generales')->getCell('B3')->getValue());
         $tratamientos = $libro->getSheetByName('Tratamientos');
-        $this->assertSame('45:54:0:0:70:126:1', $tratamientos->getCell('B2')->getValue());
-        $this->assertSame('ES-00123', $tratamientos->getCell('H2')->getValue());
-        $this->assertSame('0145-B-1234', $tratamientos->getCell('K2')->getValue());
+        $this->assertSame('08:30', $tratamientos->getCell('B2')->getValue());
+        $this->assertSame('45:54:0:0:70:126:1', $tratamientos->getCell('C2')->getValue());
+        $this->assertSame('VITVI', $tratamientos->getCell('E2')->getValue());
+        $this->assertSame('57', (string) $tratamientos->getCell('G2')->getValue());
+        $this->assertSame('ES-00123', $tratamientos->getCell('L2')->getValue());
+        $this->assertSame('l/ha', $tratamientos->getCell('N2')->getValue());
+        $this->assertSame('12345678Z', $tratamientos->getCell('P2')->getValue());
+        $this->assertSame('0145-B-1234', $tratamientos->getCell('Q2')->getValue());
+        $this->assertSame('01/02/2025', $tratamientos->getCell('S2')->getValue());
+        $this->assertSame('0245-A-0001', $tratamientos->getCell('V2')->getValue());
         $this->assertSame('8-15-15', $libro->getSheetByName('Fertilización')->getCell('G2')->getValue());
         $this->assertEquals(9500, $libro->getSheetByName('Cosecha')->getCell('F2')->getValue());
     }

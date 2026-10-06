@@ -15,7 +15,7 @@
 
     <div class="py-8">
         <div class="max-w-2xl mx-auto sm:px-6 lg:px-8">
-            <form method="POST" action="{{ route('cosechas.store', $finca) }}" class="bg-white rounded-xl shadow-sm border border-gray-100 p-6 space-y-5">
+            <form method="POST" action="{{ route('cosechas.store', $finca) }}" data-pagina="cosecha" class="bg-white rounded-xl shadow-sm border border-gray-100 p-6 space-y-5">
                 @csrf
 
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -85,15 +85,4 @@
         </div>
     </div>
 
-    <script>
-    (function () {
-        // Propone el producto según el cultivo de la parcela si aún no se ha escrito nada
-        const parcela = document.getElementById('parcela_id');
-        const producto = document.getElementById('producto');
-        parcela.addEventListener('change', () => {
-            const sugerido = parcela.selectedOptions[0]?.dataset.producto;
-            if (sugerido && !producto.value) producto.value = sugerido;
-        });
-    })();
-    </script>
 </x-app-layout>

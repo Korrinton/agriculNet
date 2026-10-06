@@ -6,6 +6,7 @@ use App\Modules\CuadernoDigital\Models\Cosecha;
 use App\Modules\CuadernoDigital\Models\Fertilizacion;
 use App\Modules\Riegos\Models\Riego;
 use App\Modules\Tratamientos\Models\Tratamiento;
+use App\Modules\Tratamientos\Services\ImportadorFitosanitarios;
 use App\Modules\Vinedo\Models\Finca;
 use App\Modules\Vinedo\Models\Variedad;
 use Carbon\Carbon;
@@ -97,16 +98,41 @@ class CuadernoCampana
             $avisos[] = 'Falta el número de inscripción en el Registro de Explotaciones Agrícolas (REA).';
         }
 
-        $sinAplicador = $tratamientos->filter(fn ($t) => !$t->aplicador_ropo)->count();
-        if ($sinAplicador > 0) {
-            $avisos[] = "{$sinAplicador} " . ($sinAplicador === 1 ? 'tratamiento no indica' : 'tratamientos no indican')
-                . ' el nº ROPO del aplicador, obligatorio en el registro de tratamientos.';
+        // Datos obligatorios de cada tratamiento (Reglamento (UE) 2023/564 y Orden APA/204/2023)
+        $faltan = [
+            'el nº ROPO del aplicador'     => fn ($t) => !$t->aplicador_ropo,
+            'el NIF del aplicador'         => fn ($t) => !$t->aplicador_nif,
+            'el estadio BBCH del cultivo'  => fn ($t) => !$t->bbch,
+            'el cultivo con código EPPO (en secano, indica el cultivo como variedad de la parcela)' => fn ($t) => !$t->codigoEppo(),
+            'la justificación del tratamiento' => fn ($t) => !$t->justificacion,
+            'el nº ROMA o REGANIP del equipo'  => fn ($t) => !$t->equipo_roma,
+            'el asesor que lo valida (obligatorio salvo explotaciones exentas de asesoramiento)' => fn ($t) => !$t->asesor_ropo,
+        ];
+        foreach ($faltan as $dato => $falta) {
+            $n = $tratamientos->filter($falta)->count();
+            if ($n > 0) {
+                $avisos[] = "{$n} " . ($n === 1 ? 'tratamiento no indica' : 'tratamientos no indican') . " {$dato}.";
+            }
+        }
+
+        $inspeccion = $tratamientos->filter(fn ($t) => $t->equipo_roma && $t->inspeccionEquipoCaducada())->count();
+        if ($inspeccion > 0) {
+            $avisos[] = "{$inspeccion} " . ($inspeccion === 1 ? 'tratamiento se hizo' : 'tratamientos se hicieron')
+                . ' con un equipo sin inspección ITEAF en vigor (o sin anotar su fecha).';
         }
 
         $sinProductoRegistrado = $tratamientos->filter(fn ($t) => !$t->producto?->numero_registro)->count();
         if ($sinProductoRegistrado > 0) {
             $avisos[] = "{$sinProductoRegistrado} " . ($sinProductoRegistrado === 1 ? 'tratamiento usa' : 'tratamientos usan')
                 . ' un producto sin nº de registro fitosanitario.';
+        }
+
+        $noAutorizados = $tratamientos->filter(
+            fn ($t) => $t->producto?->autorizadoPara(ImportadorFitosanitarios::cultivoRegistroDe($t->parcela)) === false
+        )->count();
+        if ($noAutorizados > 0) {
+            $avisos[] = "{$noAutorizados} " . ($noAutorizados === 1 ? 'tratamiento usa' : 'tratamientos usan')
+                . ' un producto que el Registro de Productos Fitosanitarios no autoriza para el cultivo de la parcela.';
         }
 
         $tarde = $fertilizaciones->filter(

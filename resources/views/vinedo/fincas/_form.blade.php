@@ -1,5 +1,5 @@
 {{-- Ubicación de la finca --}}
-<div>
+<div data-pagina="provincia">
     <h3 class="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
         <svg class="h-4 w-4 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/>
@@ -20,7 +20,7 @@
                         required placeholder="45" />
                 </div>
                 <div class="flex-1">
-                    <select id="provincia_nombre" onchange="syncProvincia(this)"
+                    <select id="provincia_nombre"
                         class="block w-full border-gray-300 rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500 text-sm">
                         <option value="">Nombre...</option>
                         @foreach($provincias as $cod => $nombre)
@@ -87,13 +87,3 @@
     </div>
 </div>
 
-<script>
-(function () {
-    window.syncProvincia = function (select) {
-        document.getElementById('provincia_cod').value = select.value;
-    };
-    document.getElementById('provincia_cod').addEventListener('input', function () {
-        document.getElementById('provincia_nombre').value = this.value;
-    });
-})();
-</script>

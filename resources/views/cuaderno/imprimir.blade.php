@@ -12,6 +12,9 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Cuaderno de explotación {{ $datos['anio'] }} — {{ $finca->paraje ?: $finca->provincia_nombre }}</title>
+    <link rel="icon" href="{{ asset('favicon.svg') }}?v=2" type="image/svg+xml">
+    {{-- Solo por el botón de imprimir (data-imprimir): la CSP no deja usar onclick --}}
+    @vite('resources/js/app.js')
     <style>
         @page { size: A4 landscape; margin: 12mm; }
         * { box-sizing: border-box; }
@@ -40,7 +43,7 @@
 </head>
 <body>
     <div class="barra">
-        <button type="button" onclick="window.print()">Imprimir / Guardar como PDF</button>
+        <button type="button" data-imprimir>Imprimir / Guardar como PDF</button>
         <span style="font-size:9pt;color:#57534e">En el diálogo de impresión elige «Guardar como PDF» para obtener el fichero.</span>
     </div>
 
@@ -82,21 +85,21 @@
 
     <h2>2. Tratamientos fitosanitarios</h2>
     <table>
-        <thead><tr><th>Fecha</th><th>Parcela</th><th>Cultivo</th><th class="num">Sup. tratada (ha)</th><th>Problema</th><th>Producto</th><th>Nº registro</th><th class="num">Dosis (l/ha)</th><th>Aplicador</th><th>Nº ROPO</th><th>Equipo (ROMA)</th><th>Eficacia</th></tr></thead>
+        <thead><tr><th>Fecha y hora</th><th>Parcela</th><th>Cultivo (EPPO) · BBCH</th><th class="num">Sup. tratada (ha)</th><th>Problema · justificación</th><th>Producto</th><th>Nº registro</th><th class="num">Dosis (por ha)</th><th>Aplicador (NIF · ROPO)</th><th>Equipo · inspección ITEAF</th><th>Asesor (NIF · ROPO) · validación</th><th>Eficacia</th></tr></thead>
         <tbody>
             @forelse($datos['tratamientos'] as $t)
                 <tr>
-                    <td>{{ $t->fecha->format('d/m/Y') }}</td>
+                    <td>{{ $t->fecha->format('d/m/Y') }}@if($t->horaInicio())<br>{{ $t->horaInicio() }}@endif</td>
                     <td class="mono">{{ $t->parcela->referencia_sigpac ?? $t->parcela->nombre }}</td>
-                    <td>{{ CuadernoCampana::cultivoDe($t->parcela) }}</td>
+                    <td>{{ CuadernoCampana::cultivoDe($t->parcela) }} @if($t->codigoEppo())<span class="mono">({{ $t->codigoEppo() }})</span>@endif<br>BBCH {{ $t->bbch ?? '—' }}</td>
                     <td class="num">{{ $num($t->superficie_tratada_ha ?? $t->parcela->superficie_ha, 2) }}</td>
-                    <td>{{ $t->motivo ?: '—' }}</td>
+                    <td>{{ $t->motivo ?: '—' }}@if($t->justificacion)<br><em>{{ $t->justificacion }}</em>@endif</td>
                     <td>{{ $t->producto?->nombre ?? '—' }}</td>
                     <td class="mono">{{ $t->producto?->numero_registro ?? '—' }}</td>
-                    <td class="num">{{ $num($t->dosis_l_ha, 3) }}</td>
-                    <td>{{ $t->aplicador_nombre ?: '—' }}</td>
-                    <td class="mono">{{ $t->aplicador_ropo ?: '—' }}</td>
-                    <td class="mono">{{ $t->equipo_roma ?: '—' }}</td>
+                    <td class="num">{{ $num($t->dosis_l_ha, 3) }} {{ $t->unidad ?? 'l' }}</td>
+                    <td>{{ $t->aplicador_nombre ?: '—' }}<br><span class="mono">{{ $t->aplicador_nif ?: '—' }} · {{ $t->aplicador_ropo ?: '—' }}</span></td>
+                    <td><span class="mono">{{ $t->equipo_roma ?: '—' }}</span><br>{{ $t->equipo_inspeccion_fecha?->format('d/m/Y') ?? '—' }}</td>
+                    <td>{{ $t->asesor_nombre ?: '—' }}@if($t->asesor_nombre)<br><span class="mono">{{ $t->asesor_nif ?: '—' }} · {{ $t->asesor_ropo ?: '—' }}</span><br>{{ $t->asesor_fecha_validacion?->format('d/m/Y') ?? '—' }}@endif</td>
                     <td>{{ Tratamiento::EFICACIAS[$t->eficacia] ?? '—' }}</td>
                 </tr>
             @empty

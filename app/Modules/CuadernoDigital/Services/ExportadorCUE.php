@@ -26,22 +26,36 @@ class ExportadorCUE
         $libro->getProperties()->setTitle("Cuaderno de explotación {$datos['anio']}")->setCreator('agriculNet');
 
         $this->hojaGeneral($libro->getActiveSheet(), $datos);
+        // Datos del Reglamento (UE) 2023/564 y de la Orden APA/204/2023, en el orden en que se anotan
         $this->hoja($libro->createSheet(), 'Tratamientos', [
-            'Fecha', 'Parcela (ref. SIGPAC)', 'Cultivo', 'Variedad', 'Sup. tratada (ha)', 'Problema / motivo',
-            'Producto', 'Nº registro', 'Dosis (l/ha)', 'Aplicador', 'Nº ROPO', 'Equipo (nº ROMA)', 'Eficacia',
+            'Fecha', 'Hora de inicio', 'Parcela (ref. SIGPAC)', 'Cultivo', 'Código EPPO', 'Variedad', 'Estadio BBCH',
+            'Sup. tratada (ha)', 'Problema fitosanitario', 'Justificación', 'Producto', 'Nº registro', 'Dosis', 'Unidad',
+            'Aplicador', 'NIF aplicador', 'Nº ROPO aplicador', 'Equipo (nº ROMA / REGANIP)', 'Última inspección ITEAF',
+            'Asesor', 'NIF asesor', 'Nº ROPO asesor', 'Fecha de validación', 'Eficacia',
         ], $datos['tratamientos']->map(fn (Tratamiento $t) => [
             $t->fecha->format('d/m/Y'),
+            $t->horaInicio(),
             $t->parcela->referencia_sigpac ?? $t->parcela->nombre,
             CuadernoCampana::cultivoDe($t->parcela),
+            $t->codigoEppo(),
             $t->parcela->variedad?->nombre,
+            $t->bbch,
             (float) ($t->superficie_tratada_ha ?? $t->parcela->superficie_ha),
             $t->motivo,
+            $t->justificacion,
             $t->producto?->nombre,
             $t->producto?->numero_registro,
             (float) $t->dosis_l_ha,
+            $t->unidadDosis(),
             $t->aplicador_nombre,
+            $t->aplicador_nif,
             $t->aplicador_ropo,
             $t->equipo_roma,
+            $t->equipo_inspeccion_fecha?->format('d/m/Y'),
+            $t->asesor_nombre,
+            $t->asesor_nif,
+            $t->asesor_ropo,
+            $t->asesor_fecha_validacion?->format('d/m/Y'),
             Tratamiento::EFICACIAS[$t->eficacia] ?? null,
         ])->all());
 

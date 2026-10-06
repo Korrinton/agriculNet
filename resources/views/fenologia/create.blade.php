@@ -52,7 +52,8 @@
                     </div>
                 @endif
 
-                <form method="POST" action="{{ route('fenologia.store', $parcela) }}">
+                <form method="POST" action="{{ route('fenologia.store', $parcela) }}" data-pagina="observacion">
+                    <script type="application/json" data-datos>@json(['estados' => $estados->keyBy('id')])</script>
                     @csrf
 
                     <div class="space-y-5">
@@ -116,22 +117,4 @@
         </div>
     </div>
 
-    <script>
-    (function () {
-        const estados = @json($estados->keyBy('id'));
-        const select  = document.getElementById('estado_fenologico_id');
-        const box     = document.getElementById('estado-desc');
-        const text    = document.getElementById('desc-text');
-
-        function update() {
-            const e = estados[select.value];
-            if (!e || !e.descripcion) { box.classList.add('hidden'); return; }
-            text.textContent = e.descripcion;
-            box.classList.remove('hidden');
-        }
-
-        select.addEventListener('change', update);
-        update();
-    })();
-    </script>
 </x-app-layout>

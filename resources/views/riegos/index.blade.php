@@ -12,12 +12,12 @@
             @if($finca)
                 <div class="flex flex-wrap items-center gap-2">
                     <form method="GET" action="{{ route('riegos.index') }}" class="flex items-center gap-2">
-                        <select name="finca" onchange="this.form.submit()" class="text-sm border-gray-300 rounded-lg focus:ring-green-500 focus:border-green-500">
+                        <select name="finca" data-autoenviar class="text-sm border-gray-300 rounded-lg focus:ring-green-500 focus:border-green-500">
                             @foreach($fincas as $f)
                                 <option value="{{ $f->id }}" {{ $f->id === $finca->id ? 'selected' : '' }}>{{ $f->paraje ?: $f->provincia_nombre }} ({{ $f->codigo_ine }})</option>
                             @endforeach
                         </select>
-                        <select name="anio" onchange="this.form.submit()" class="text-sm border-gray-300 rounded-lg focus:ring-green-500 focus:border-green-500">
+                        <select name="anio" data-autoenviar class="text-sm border-gray-300 rounded-lg focus:ring-green-500 focus:border-green-500">
                             @foreach($campanas as $a)
                                 <option value="{{ $a }}" {{ $a === $anio ? 'selected' : '' }}>Campaña {{ $a }}</option>
                             @endforeach
@@ -35,9 +35,6 @@
     <div class="py-8">
         <div class="max-w-7xl mx-auto sm:px-6 lg:px-8 space-y-6">
 
-            @if(session('success'))
-                <div class="p-4 bg-green-50 border border-green-200 text-green-700 rounded-lg">{{ session('success') }}</div>
-            @endif
 
             @if(! $finca)
                 <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-12 text-center">
@@ -125,7 +122,7 @@
                                         <td class="px-4 py-2 text-gray-600">{{ Riego::SISTEMAS[$r->sistema] ?? $r->sistema }}</td>
                                         <td class="px-4 py-2 text-gray-600">{{ Riego::ORIGENES[$r->origen] ?? '—' }}</td>
                                         <td class="px-3 py-2 text-right">
-                                            <form method="POST" action="{{ route('riegos.destroy', $r) }}" onsubmit="return confirm('¿Eliminar este riego?')">
+                                            <form method="POST" action="{{ route('riegos.destroy', $r) }}" data-confirmar="¿Eliminar este riego?">
                                                 @csrf @method('DELETE')
                                                 <button type="submit" class="text-gray-300 hover:text-red-500" title="Eliminar">✕</button>
                                             </form>

@@ -15,7 +15,7 @@
         $oldParcelas = old('parcelas', [['parcela_sigpac'=>'','uso'=>'','superficie_ha'=>'']]);
     @endphp
 
-    <div class="py-8">
+    <div class="py-8" data-pagina="nueva-finca">
         <div class="max-w-3xl mx-auto sm:px-6 lg:px-8">
             <form method="POST" action="{{ route('vinedo.fincas.store') }}">
                 @csrf
@@ -47,7 +47,7 @@
                     <div id="parcelas-list" class="space-y-4">
                         @foreach($oldParcelas as $idx => $p)
                         <div class="parcela-card border border-gray-200 rounded-lg p-4 relative" data-parcela-form>
-                            <button type="button" onclick="removeParcela(this)"
+                            <button type="button"
                                 class="remove-btn absolute top-3 right-3 text-gray-300 hover:text-red-500 transition"
                                 title="Eliminar parcela">
                                 <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -145,7 +145,7 @@
                         @endforeach
                     </div>
 
-                    <button type="button" onclick="addParcela()"
+                    <button type="button" data-anadir-parcela
                         class="mt-4 w-full flex items-center justify-center gap-2 px-4 py-2.5 border border-dashed border-gray-300 rounded-lg text-sm text-gray-500 hover:border-green-400 hover:text-green-600 transition">
                         <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
@@ -168,7 +168,7 @@
     {{-- Template para parcelas añadidas dinámicamente --}}
     <template id="parcela-template">
         <div class="parcela-card border border-gray-200 rounded-lg p-4 relative" data-parcela-form>
-            <button type="button" onclick="removeParcela(this)"
+            <button type="button"
                 class="remove-btn absolute top-3 right-3 text-gray-300 hover:text-red-500 transition"
                 title="Eliminar parcela">
                 <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -250,45 +250,6 @@
         </div>
     </template>
 
-    <script>
-    (function () {
-        let parcelaIdx = {{ count($oldParcelas) }};
-
-        function updateUI() {
-            const cards = document.querySelectorAll('#parcelas-list .parcela-card');
-            cards.forEach((card, i) => {
-                const title = card.querySelector('.parcela-title');
-                if (title) title.textContent = 'Parcela ' + (i + 1);
-                const btn = card.querySelector('.remove-btn');
-                if (btn) btn.classList.toggle('hidden', cards.length === 1);
-            });
-            const n = cards.length;
-            document.getElementById('parcelas-count-label').textContent = n + (n === 1 ? ' parcela' : ' parcelas');
-        }
-
-        window.addParcela = function () {
-            const tpl = document.getElementById('parcela-template').content.cloneNode(true);
-            tpl.querySelectorAll('[name]').forEach(el => {
-                el.name = el.name.replace(/IDX/g, parcelaIdx);
-            });
-            const lista = document.getElementById('parcelas-list');
-            lista.appendChild(tpl);
-            window.filtrarVariedades?.(lista.lastElementChild);
-            parcelaIdx++;
-            updateUI();
-        };
-
-        window.removeParcela = function (btn) {
-            const cards = document.querySelectorAll('#parcelas-list .parcela-card');
-            if (cards.length > 1) {
-                btn.closest('.parcela-card').remove();
-                updateUI();
-            }
-        };
-
-        updateUI();
-    })();
-    </script>
 
     @include('vinedo.parcelas._variedades_por_uso')
 </x-app-layout>

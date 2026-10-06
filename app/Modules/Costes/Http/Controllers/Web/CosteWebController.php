@@ -9,6 +9,7 @@ use App\Modules\Costes\Services\CosteService;
 use App\Modules\Vinedo\Models\Finca;
 use App\Modules\Vinedo\Models\Parcela;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 
 class CosteWebController extends Controller
 {
@@ -17,67 +18,94 @@ class CosteWebController extends Controller
     public function index(Request $request)
     {
         $año = $request->integer('año', now()->year);
+        $fincas = Finca::where('user_id', auth()->id())->orderBy('paraje')->get();
+        $fincaId = $fincas->contains('id', $request->integer('finca')) ? $request->integer('finca') : null;
 
-        $costes = Coste::whereHas('parcela.finca', fn($q) => $q->where('user_id', auth()->id()))
-            ->with(['parcela.finca', 'categoria'])
-            ->whereYear('fecha', $año)
+        $base = fn () => Coste::whereHas('finca', fn ($q) => $q->where('user_id', auth()->id()))
+            ->when($fincaId, fn ($q) => $q->where('finca_id', $fincaId))
+            ->whereYear('fecha', $año);
+
+        $costes = $base()
+            ->with(['finca', 'parcela', 'categoria'])
             ->latest('fecha')
+            ->latest('id')
             ->paginate(30)
             ->withQueryString();
 
-        $resumenPorCategoria = Coste::whereHas('parcela.finca', fn($q) => $q->where('user_id', auth()->id()))
-            ->with('categoria')
-            ->whereYear('fecha', $año)
-            ->get()
-            ->groupBy('categoria.nombre')
-            ->map(fn($g) => $g->sum('importe'))
-            ->sortDesc();
-
+        $todos = $base()->with('categoria')->get();
+        $resumenPorCategoria = $todos->groupBy('categoria.nombre')->map(fn ($g) => $g->sum('importe'))->sortDesc();
         $totalAño = $resumenPorCategoria->sum();
+        $totalGenerales = $todos->whereNull('parcela_id')->sum('importe');
 
-        $años = Coste::whereHas('parcela.finca', fn($q) => $q->where('user_id', auth()->id()))
+        $años = Coste::whereHas('finca', fn ($q) => $q->where('user_id', auth()->id()))
             ->selectRaw('EXTRACT(YEAR FROM fecha)::integer AS año')
             ->distinct()
             ->orderByDesc('año')
             ->pluck('año');
 
-        return view('costes.index', compact('costes', 'resumenPorCategoria', 'totalAño', 'año', 'años'));
+        return view('costes.index', compact('costes', 'resumenPorCategoria', 'totalAño', 'totalGenerales', 'año', 'años', 'fincas', 'fincaId'));
     }
 
+    /** Gasto desde la ficha de una parcela: el formulario de la finca con esa parcela elegida. */
     public function create(Parcela $parcela)
     {
         $this->authorize('update', $parcela->finca);
 
-        $categorias = CategoriaCoste::orderBy('nombre')->get();
-
-        return view('costes.create', compact('parcela', 'categorias'));
+        return $this->formulario($parcela->finca, $parcela);
     }
 
+    /** Se mantiene para enlaces antiguos: equivale a guardar en la finca con la parcela elegida. */
     public function store(Request $request, Parcela $parcela)
     {
-        $this->authorize('update', $parcela->finca);
+        $request->merge(['parcela_id' => $parcela->id]);
+
+        return $this->storeFinca($request, $parcela->finca);
+    }
+
+    public function createFinca(Finca $finca)
+    {
+        $this->authorize('update', $finca);
+
+        return $this->formulario($finca, null);
+    }
+
+    public function storeFinca(Request $request, Finca $finca)
+    {
+        $this->authorize('update', $finca);
 
         $validated = $request->validate([
+            'parcela_id'   => ['nullable', 'integer', Rule::in($finca->parcelas()->pluck('id')->all())],
             'categoria_id' => 'required|exists:categoria_costes,id',
             'fecha'        => 'required|date|before_or_equal:today',
             'importe'      => 'required|numeric|min:0.01',
             'descripcion'  => 'nullable|string|max:500',
+        ], [
+            'parcela_id.in' => 'Esa parcela no es de esta finca.',
         ]);
 
-        $parcela->costes()->create(array_merge($validated, ['user_id' => $request->user()->id]));
+        $coste = $finca->costes()->create($validated + ['user_id' => $request->user()->id]);
 
-        return redirect()->route('vinedo.parcelas.show', $parcela)
-            ->with('success', 'Coste registrado correctamente.');
+        return $coste->parcela_id
+            ? redirect()->route('vinedo.parcelas.show', $coste->parcela_id)->with('success', 'Coste registrado correctamente.')
+            : redirect()->route('vinedo.fincas.show', $finca)->with('success', 'Gasto de la finca registrado.');
     }
 
     public function destroy(Coste $coste)
     {
-        $this->authorize('update', $coste->parcela->finca);
+        $this->authorize('update', $coste->finca);
 
-        $parcela = $coste->parcela;
         $coste->delete();
 
-        return redirect()->route('vinedo.parcelas.show', $parcela)
-            ->with('success', 'Coste eliminado.');
+        return back()->with('success', 'Coste eliminado.');
+    }
+
+    private function formulario(Finca $finca, ?Parcela $parcela)
+    {
+        return view('costes.create', [
+            'finca'      => $finca,
+            'parcela'    => $parcela,
+            'parcelas'   => $finca->parcelas()->orderBy('id')->get(),
+            'categorias' => CategoriaCoste::orderBy('nombre')->get(),
+        ]);
     }
 }
