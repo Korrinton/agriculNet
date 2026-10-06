@@ -105,6 +105,9 @@ return [
         ),
     ],
 
+    // Solo si las copias de seguridad van cifradas (la frase la usa el contenedor db-backup, no la app)
+    'copias_cifradas' => filled(env('BACKUP_PASSPHRASE')),
+
     /*
     |--------------------------------------------------------------------------
     | Maintenance Mode Driver

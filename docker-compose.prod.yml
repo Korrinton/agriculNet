@@ -1,0 +1,32 @@
+# Producción: se superpone a docker-compose.yml.
+#
+#   docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
+#
+# Requiere en .env los valores de .env.production.example y los certificados en CERTS_DIR
+# (ver README «Producción»). Si la configuración no es segura, php-fpm no arranca
+# (php artisan seguridad:comprobar).
+
+services:
+  nginx:
+    ports: !override
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./docker/nginx/produccion.conf:/etc/nginx/conf.d/default.conf:ro
+      - ${CERTS_DIR:-./docker/nginx/certs}:/etc/nginx/certs:ro
+      - ./docker/certbot/www:/var/www/certbot:ro
+
+  # Base de datos y Redis solo dentro de la red de Docker, nunca publicados
+  postgres:
+    ports: !reset []
+
+  redis:
+    ports: !reset []
+
+  db-backup:
+    environment:
+      BACKUP_REQUIRE_ENCRYPTION: "1"
+
+  # El correo de producción va por el SMTP de MAIL_HOST; Mailpit es solo para desarrollo
+  mailpit:
+    profiles: ["desarrollo"]
