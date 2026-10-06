@@ -115,4 +115,10 @@ return [
         'name' => env('MAIL_FROM_NAME', env('APP_NAME', 'Laravel')),
     ],
 
+    // Tema de los correos (resources/views/vendor/mail/html/themes/agriculnet.css)
+    'markdown' => [
+        'theme' => env('MAIL_MARKDOWN_THEME', 'agriculnet'),
+        'paths' => [resource_path('views/vendor/mail')],
+    ],
+
 ];

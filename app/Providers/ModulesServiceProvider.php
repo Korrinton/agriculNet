@@ -17,6 +17,7 @@ class ModulesServiceProvider extends ServiceProvider
         'CuadernoDigital',
         'Riegos',
         'Usuarios',
+        'Admin',
     ];
 
     public function boot(): void

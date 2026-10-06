@@ -75,10 +75,12 @@ class AlertaService
 
         if ($producto->dosis_max_l_ha && (float) $tratamiento->dosis_l_ha > (float) $producto->dosis_max_l_ha) {
             $this->crear($parcela, $user, 'dosis_excedida', 'critical', sprintf(
-                'Dosis de %s (%s l/ha) superior al máximo autorizado (%s l/ha) en %s.',
+                'Dosis de %s (%s %s) superior al máximo autorizado (%s %s) en %s.',
                 $producto->nombre,
                 number_format((float) $tratamiento->dosis_l_ha, 2, ',', '.'),
+                $tratamiento->unidadDosis(),
                 number_format((float) $producto->dosis_max_l_ha, 2, ',', '.'),
+                $tratamiento->unidadDosis(),
                 $parcela->nombre,
             ), "dosis_excedida:{$tratamiento->id}");
         }

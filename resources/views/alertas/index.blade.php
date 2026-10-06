@@ -40,11 +40,6 @@
     <div class="py-8">
         <div class="max-w-7xl mx-auto sm:px-6 lg:px-8 space-y-4">
 
-            @if(session('success'))
-                <div class="p-4 bg-green-50 border border-green-200 text-green-700 rounded-lg">
-                    {{ session('success') }}
-                </div>
-            @endif
 
             {{-- Filtros --}}
             <form method="GET" action="{{ route('alertas.index') }}" class="flex flex-wrap items-center gap-2">
@@ -61,7 +56,7 @@
                 @unless($soloNoLeidas)
                     <input type="hidden" name="estado" value="todas">
                 @endunless
-                <select name="nivel" onchange="this.form.submit()"
+                <select name="nivel" data-autoenviar
                     class="text-sm border-gray-300 rounded-lg focus:ring-green-500 focus:border-green-500">
                     <option value="">Todos los niveles</option>
                     @foreach($niveles as $valor => $etiqueta)
@@ -129,7 +124,7 @@
                                     </form>
                                 @endunless
                                 <form method="POST" action="{{ route('alertas.destroy', $alerta) }}"
-                                    onsubmit="return confirm('¿Eliminar esta alerta?')">
+                                    data-confirmar="¿Eliminar esta alerta?">
                                     @csrf @method('DELETE')
                                     <button type="submit"
                                         class="p-1.5 rounded text-gray-300 hover:text-red-500 hover:bg-red-50 transition" title="Eliminar">

@@ -119,9 +119,10 @@ class GeneradorAlertas
 
     public function finPlazosSeguridad(Carbon $hoy): int
     {
-        // plazo_seguridad_dias es tinyint unsigned: ningún plazo supera 255 días
+        // Los plazos de seguridad se validan hasta 255 días
         $tratamientos = Tratamiento::with(['producto', 'parcela.finca'])
-            ->whereHas('producto', fn ($q) => $q->whereNotNull('plazo_seguridad_dias'))
+            ->where(fn ($q) => $q->whereNotNull('plazo_seguridad_dias')
+                ->orWhereHas('producto', fn ($p) => $p->whereNotNull('plazo_seguridad_dias')))
             ->whereHas('parcela')
             ->whereBetween('fecha', [$hoy->copy()->subDays(255)->toDateString(), $hoy->toDateString()])
             ->get();

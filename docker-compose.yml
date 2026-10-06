@@ -11,6 +11,7 @@ services:
     volumes:
       - .:/var/www/html:ro
       - ./docker/nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./docker/nginx/cabeceras-seguridad.conf:/etc/nginx/snippets/cabeceras-seguridad.conf:ro
     depends_on:
       - php-fpm
     networks:
@@ -85,8 +86,9 @@ services:
       POSTGRES_PASSWORD: ${DB_PASSWORD:-secret}
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    # Solo desde este equipo (para clientes como DBeaver), no desde la red local
     ports:
-      - "${DB_PORT_EXTERNAL:-5432}:5432"
+      - "127.0.0.1:${DB_PORT_EXTERNAL:-5432}:5432"
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${DB_USERNAME:-agrario}"]
       interval: 5s
@@ -101,8 +103,9 @@ services:
     command: redis-server --appendonly yes
     volumes:
       - redis_data:/data
+    # Redis no tiene contraseña y guarda las sesiones: solo desde este equipo
     ports:
-      - "${REDIS_PORT_EXTERNAL:-6379}:6379"
+      - "127.0.0.1:${REDIS_PORT_EXTERNAL:-6379}:6379"
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 5s
@@ -112,9 +115,21 @@ services:
       - agrario
     restart: unless-stopped
 
-  # Copia diaria de la BD en ./backups (ver docker/backup/backup.sh)
+  # Correo de desarrollo: captura todo lo que envía la app (nada sale a Internet) y lo
+  # muestra en http://localhost:8025. En producción no se arranca (docker-compose.prod.yml).
+  mailpit:
+    image: axllent/mailpit:v1.21
+    ports:
+      - "127.0.0.1:${MAILPIT_PORT:-8025}:8025"
+    networks:
+      - agrario
+    restart: unless-stopped
+
+  # Copia diaria de la BD en BACKUP_DIR (por defecto ./backups), cifrada si hay BACKUP_PASSPHRASE
+  # (ver docker/backup/backup.sh)
   db-backup:
-    image: postgres:16-alpine
+    build:
+      context: docker/backup
     entrypoint: ["sh", "/backup.sh"]
     environment:
       PGHOST: postgres
@@ -124,9 +139,12 @@ services:
       BACKUP_INTERVAL_HOURS: 23
       BACKUP_KEEP_DAYS: 14
       BACKUP_KEEP_MIN: 7
+      BACKUP_PASSPHRASE: ${BACKUP_PASSPHRASE:-}
+      BACKUP_REQUIRE_ENCRYPTION: ${BACKUP_REQUIRE_ENCRYPTION:-0}
     volumes:
       - ./docker/backup/backup.sh:/backup.sh:ro
-      - ./backups:/backups
+      # Fuera de carpetas sincronizadas con la nube (OneDrive, Dropbox…): las copias llevan datos personales
+      - ${BACKUP_DIR:-./backups}:/backups
     depends_on:
       postgres:
         condition: service_healthy
