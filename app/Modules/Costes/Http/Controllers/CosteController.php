@@ -3,6 +3,7 @@
 namespace App\Modules\Costes\Http\Controllers;
 
 use App\Http\Controllers\Controller;
+use App\Modules\Costes\Http\Requests\GuardarCosteRequest;
 use App\Modules\Costes\Services\CosteService;
 use App\Modules\Vinedo\Models\Parcela;
 use Illuminate\Http\JsonResponse;
@@ -21,19 +22,12 @@ class CosteController extends Controller
         );
     }
 
-    public function store(Request $request, Parcela $parcela): JsonResponse
+    public function store(GuardarCosteRequest $request, Parcela $parcela): JsonResponse
     {
         $this->authorize('update', $parcela->finca);
 
-        $data = $request->validate([
-            'categoria_id' => 'required|exists:categoria_costes,id',
-            'fecha'        => 'required|date',
-            'importe'      => 'required|numeric|min:0.01',
-            'descripcion'  => 'nullable|string|max:500',
-        ]);
-
         $coste = $parcela->costes()->create(
-            array_merge($data, ['user_id' => $request->user()->id])
+            array_merge($request->validated(), ['user_id' => $request->user()->id])
         );
 
         return response()->json($coste->load('categoria'), 201);
@@ -46,8 +40,8 @@ class CosteController extends Controller
         $año = $request->integer('año', now()->year);
 
         return response()->json([
-            'por_categoria'   => $this->service->costesTotalesPorCategoria($parcela, $año),
-            'coste_por_ha'    => $this->service->costesPorHectarea($parcela, $año),
+            'por_categoria' => $this->service->costesTotalesPorCategoria($parcela, $año),
+            'coste_por_ha' => $this->service->costesPorHectarea($parcela, $año),
         ]);
     }
 }

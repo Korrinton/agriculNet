@@ -12,7 +12,7 @@ class MeteorologiaWebController extends Controller
     {
         $fincas = Finca::where('user_id', auth()->id())
             ->with(['estacion.datos' => function ($q) {
-                $q->whereDate('fecha', '>=', now()->subDays(30))->orderBy('fecha');
+                $q->where('fecha', '>=', now()->subDays(30)->toDateString())->orderBy('fecha');
             }])
             ->orderBy('provincia_cod')
             ->get();

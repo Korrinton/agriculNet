@@ -6,12 +6,14 @@ use App\Modules\Vinedo\Models\Finca;
 use App\Modules\Vinedo\Models\Parcela;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 
 class SigpacService
 {
     public function tieneReferenciaSigpac(Parcela $parcela): bool
     {
         $finca = $parcela->finca;
+
         return $finca->provincia_cod
             && $finca->municipio_cod
             && $parcela->poligono
@@ -21,13 +23,14 @@ class SigpacService
     private function params(Parcela $parcela): array
     {
         $finca = $parcela->finca;
+
         return [
             'prov' => str_pad((int) $finca->provincia_cod, 2, '0', STR_PAD_LEFT),
-            'mun'  => str_pad((int) $finca->municipio_cod, 3, '0', STR_PAD_LEFT),
-            'agr'  => (int) ($parcela->agregado ?? 0),
-            'pol'  => (int) $parcela->poligono,
-            'par'  => (int) $parcela->parcela_sigpac,
-            'rec'  => (int) ($parcela->recinto ?? 0),
+            'mun' => str_pad((int) $finca->municipio_cod, 3, '0', STR_PAD_LEFT),
+            'agr' => (int) ($parcela->agregado ?? 0),
+            'pol' => (int) $parcela->poligono,
+            'par' => (int) $parcela->parcela_sigpac,
+            'rec' => (int) ($parcela->recinto ?? 0),
         ];
     }
 
@@ -57,8 +60,8 @@ class SigpacService
         $params = [
             'provincia' => (int) $finca->provincia_cod,
             'municipio' => (int) $finca->municipio_cod,
-            'poligono'  => (int) $parcela->poligono,
-            'parcela'   => (int) $parcela->parcela_sigpac,
+            'poligono' => (int) $parcela->poligono,
+            'parcela' => (int) $parcela->parcela_sigpac,
         ];
 
         if ($parcela->recinto) {
@@ -92,8 +95,8 @@ class SigpacService
             $geojson = $this->consultarRecintos([
                 'provincia' => (int) $finca->provincia_cod,
                 'municipio' => (int) $finca->municipio_cod,
-                'poligono'  => (int) $poligono,
-                'limit'     => 1,
+                'poligono' => (int) $poligono,
+                'limit' => 1,
             ], 10);
 
             if ($centro = $this->centro($geojson)) {
@@ -132,14 +135,18 @@ class SigpacService
     private function consultarRecintos(array $params, int $timeout): ?array
     {
         ksort($params);
-        $cacheKey = 'sigpac.recintos.' . md5(http_build_query($params));
+        $cacheKey = 'sigpac.recintos.'.md5(http_build_query($params));
 
-        if ($cached = Cache::get($cacheKey)) {
-            return $cached;
+        // Un array vacío cacheado = «sin recintos» o fallo reciente: evita esperar el
+        // timeout en cada visita mientras SIGPAC esté caído o la referencia no exista
+        $cached = Cache::get($cacheKey);
+        if ($cached !== null) {
+            return $cached ?: null;
         }
 
         try {
             $response = Http::timeout($timeout)
+                ->connectTimeout(5)
                 ->get('https://sigpac-hubcloud.es/ogcapi/collections/recintos/items', $params + ['f' => 'json']);
 
             if ($response->successful() && ! empty($response->json('features'))) {
@@ -148,7 +155,17 @@ class SigpacService
 
                 return $data;
             }
-        } catch (\Exception) {
+
+            if ($response->successful()) {
+                // Respuesta correcta sin recintos: la referencia no existe en SIGPAC
+                Cache::put($cacheKey, [], now()->addDay());
+            } else {
+                Log::warning("SIGPAC: error HTTP {$response->status()} consultando recintos", $params);
+                Cache::put($cacheKey, [], now()->addMinutes(10));
+            }
+        } catch (\Exception $e) {
+            Log::warning('SIGPAC: '.$e->getMessage(), $params);
+            Cache::put($cacheKey, [], now()->addMinutes(10));
         }
 
         return null;

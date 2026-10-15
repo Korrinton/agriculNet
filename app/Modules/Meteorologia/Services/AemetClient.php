@@ -2,7 +2,9 @@
 
 namespace App\Modules\Meteorologia\Services;
 
+use Illuminate\Http\Client\RequestException;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 use RuntimeException;
 
 /**
@@ -15,12 +17,13 @@ use RuntimeException;
 class AemetClient
 {
     private string $apiKey;
+
     private string $baseUrl;
 
     public function __construct()
     {
         // env() devuelve null si AEMET_API_KEY está vacía: el default de config() no aplica
-        $this->apiKey  = (string) config('aemet.api_key');
+        $this->apiKey = (string) config('aemet.api_key');
         $this->baseUrl = config('aemet.base_url', 'https://opendata.aemet.es/opendata/api');
     }
 
@@ -31,12 +34,17 @@ class AemetClient
      */
     public function get(string $endpoint): array
     {
+        // La clave va en cabecera y no en la URL: así no acaba en los logs con el mensaje
+        // de una excepción. AEMET limita peticiones por minuto, de ahí el reintento ante 429.
         $meta = Http::timeout(30)
-            ->withQueryParameters(['api_key' => $this->apiKey])
+            ->connectTimeout(10)
+            ->withHeaders(['api_key' => $this->apiKey])
             ->accept('application/json')
-            ->get($this->baseUrl . $endpoint);
+            ->retry(2, 5000, fn (\Exception $e) => $this->reintentable($e), throw: false)
+            ->get($this->baseUrl.$endpoint);
 
         if ($meta->failed()) {
+            Log::warning("AEMET: error HTTP {$meta->status()} en {$endpoint}");
             throw new RuntimeException("AEMET: error HTTP {$meta->status()} en {$endpoint}");
         }
 
@@ -48,6 +56,7 @@ class AemetClient
 
         if ($estado !== 200) {
             $desc = $meta->json('descripcion') ?? $meta->body();
+            Log::warning("AEMET: estado {$estado} en {$endpoint} – {$desc}");
             throw new RuntimeException("AEMET: estado {$estado} – {$desc}");
         }
 
@@ -58,17 +67,36 @@ class AemetClient
         }
 
         $datos = Http::timeout(60)
+            ->connectTimeout(10)
             ->accept('application/json')
+            ->retry(2, 5000, fn (\Exception $e) => $this->reintentable($e), throw: false)
             ->get($datosUrl);
 
         if ($datos->failed()) {
+            Log::warning("AEMET: error HTTP {$datos->status()} descargando datos de {$endpoint}");
             throw new RuntimeException("AEMET: error HTTP {$datos->status()} descargando datos.");
         }
 
         // AEMET devuelve ISO-8859-1; convertimos a UTF-8 antes de decodificar.
         $body = mb_convert_encoding($datos->body(), 'UTF-8', 'ISO-8859-1');
 
-        return json_decode($body, true) ?? [];
+        $json = json_decode($body, true);
+        if ($json === null && trim($body) !== '' && strtolower(trim($body)) !== 'null') {
+            Log::warning("AEMET: JSON inválido en los datos de {$endpoint}");
+            throw new RuntimeException("AEMET: JSON inválido en los datos de {$endpoint}");
+        }
+
+        return $json ?? [];
+    }
+
+    /** Reintenta los fallos de conexión y el 429 de cuota por minuto, no los demás errores. */
+    private function reintentable(\Exception $e): bool
+    {
+        if (! $e instanceof RequestException) {
+            return true; // ConnectionException y similares
+        }
+
+        return $e->response->status() === 429;
     }
 
     /** Convierte un decimal AEMET (coma española) a float. */

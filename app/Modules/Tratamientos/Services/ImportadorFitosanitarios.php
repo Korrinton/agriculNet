@@ -4,6 +4,7 @@ namespace App\Modules\Tratamientos\Services;
 
 use App\Modules\Tratamientos\Models\ProductoFitosanitario;
 use App\Modules\Vinedo\Models\Parcela;
+use Illuminate\Http\Client\RequestException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use RuntimeException;
@@ -26,22 +27,22 @@ class ImportadorFitosanitarios
      * «CEREALES DE INVIERNO» para el trigo). Los herbáceos de secano se distinguen por su variedad.
      */
     public const CULTIVOS_REGISTRO = [
-        'vid'       => [2014],       // VID DE VINIFICACIÓN
-        'olivo'     => [1974, 1973], // OLIVO DE ALMAZARA, OLIVO DE VERDEO
-        'pistacho'  => [2009],       // PISTACHERO
-        'trigo'     => [2034],
-        'cebada'    => [2035],
-        'avena'     => [2036],
-        'centeno'   => [2037],
+        'vid' => [2014],       // VID DE VINIFICACIÓN
+        'olivo' => [1974, 1973], // OLIVO DE ALMAZARA, OLIVO DE VERDEO
+        'pistacho' => [2009],       // PISTACHERO
+        'trigo' => [2034],
+        'cebada' => [2035],
+        'avena' => [2036],
+        'centeno' => [2037],
         'triticale' => [2038],
-        'veza'      => [2057],
-        'guisante'  => [2061],       // GUISANTE PROTEAGINOSO / FORRAJERO
-        'garbanzo'  => [2045],
-        'lenteja'   => [2048],
-        'yero'      => [2053],       // YEROS
-        'girasol'   => [2067],
-        'colza'     => [2069],
-        'barbecho'  => [2244],       // BARBECHOS
+        'veza' => [2057],
+        'guisante' => [2061],       // GUISANTE PROTEAGINOSO / FORRAJERO
+        'garbanzo' => [2045],
+        'lenteja' => [2048],
+        'yero' => [2053],       // YEROS
+        'girasol' => [2067],
+        'colza' => [2069],
+        'barbecho' => [2244],       // BARBECHOS
     ];
 
     public const NOMBRES_CULTIVO = [
@@ -114,7 +115,7 @@ class ImportadorFitosanitarios
             if (in_array($m[1], self::FORMULADOS_LIQUIDOS, true)) {
                 return 'l';
             }
-            if (!str_contains($formulado, 'P/V')) {
+            if (! str_contains($formulado, 'P/V')) {
                 return 'kg';
             }
         }
@@ -149,18 +150,18 @@ class ImportadorFitosanitarios
                 continue;
             }
             $filas[$p['IdProducto']] = [
-                'mapa_id'            => $p['IdProducto'],
-                'user_id'            => null,
-                'nombre'             => mb_substr(trim($p['Nombre']), 0, 255),
-                'numero_registro'    => $this->texto($p['NumRegistro'] ?? null, 50),
+                'mapa_id' => $p['IdProducto'],
+                'user_id' => null,
+                'nombre' => mb_substr(trim($p['Nombre']), 0, 255),
+                'numero_registro' => $this->texto($p['NumRegistro'] ?? null, 50),
                 'ingrediente_activo' => $this->texto($p['Formulado'] ?? null, 255),
-                'unidad'             => self::unidadDeFormulado($p['Formulado'] ?? null),
-                'titular'            => $this->texto($p['Titular'] ?? null, 255),
-                'vigente'            => true,
-                'fecha_caducidad'    => isset($p['FechaCaducidad']) ? substr($p['FechaCaducidad'], 0, 10) : null,
-                'cultivos'           => json_encode(array_values($cultivos[$p['IdProducto']] ?? [])),
-                'created_at'         => $ahora,
-                'updated_at'         => $ahora,
+                'unidad' => self::unidadDeFormulado($p['Formulado'] ?? null),
+                'titular' => $this->texto($p['Titular'] ?? null, 255),
+                'vigente' => true,
+                'fecha_caducidad' => isset($p['FechaCaducidad']) ? substr($p['FechaCaducidad'], 0, 10) : null,
+                'cultivos' => json_encode(array_values($cultivos[$p['IdProducto']] ?? [])),
+                'created_at' => $ahora,
+                'updated_at' => $ahora,
             ];
         }
 
@@ -183,10 +184,10 @@ class ImportadorFitosanitarios
                 ->update(['vigente' => false, 'updated_at' => now()]);
 
             return [
-                'recibidos'    => count($filas),
-                'nuevos'       => count($filas) - $existentes,
+                'recibidos' => count($filas),
+                'nuevos' => count($filas) - $existentes,
                 'actualizados' => $existentes,
-                'cancelados'   => $cancelados,
+                'cancelados' => $cancelados,
             ];
         });
     }
@@ -213,7 +214,18 @@ class ImportadorFitosanitarios
             $filtro += ['idCultivo' => $idCultivo, 'ancestrosCultivos' => 'true'];
         }
 
-        $respuesta = Http::asForm()->timeout(600)->retry(2, 5000)
+        // La exportación completa (~10 MB) puede tardar mucho; las filtradas por cultivo son más
+        // pequeñas y con un timeout menor las 17 peticiones caben en el timeout del job (900 s).
+        // Solo se reintentan los fallos de conexión y los errores del servidor, y sin lanzar:
+        // así un 4xx llega al failed() de abajo con su mensaje en vez de cortar como excepción.
+        $respuesta = Http::asForm()
+            ->timeout($idCultivo ? 120 : 600)
+            ->connectTimeout(10)
+            ->retry(2, 5000, function (\Exception $e) {
+                return ! $e instanceof RequestException
+                    || $e->response->serverError()
+                    || $e->response->status() === 429;
+            }, throw: false)
             ->post(self::URL_EXPORTACION, ['dataDto' => $filtro]);
 
         if ($respuesta->failed()) {
@@ -227,7 +239,7 @@ class ImportadorFitosanitarios
             ? json_decode($envoltorio['Contenido'], true)
             : null;
 
-        if (!is_array($productos)) {
+        if (! is_array($productos)) {
             throw new RuntimeException('Respuesta no reconocida del Registro de Productos Fitosanitarios.');
         }
 

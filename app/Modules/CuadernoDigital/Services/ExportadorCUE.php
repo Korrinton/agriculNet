@@ -5,6 +5,8 @@ namespace App\Modules\CuadernoDigital\Services;
 use App\Modules\CuadernoDigital\Models\Fertilizacion;
 use App\Modules\Riegos\Models\Riego;
 use App\Modules\Tratamientos\Models\Tratamiento;
+use Illuminate\Http\Response;
+use Illuminate\Support\Str;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
 use PhpOffice\PhpSpreadsheet\Style\Fill;
 use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
@@ -19,10 +21,26 @@ use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
  */
 class ExportadorCUE
 {
+    /** El .xlsx como respuesta de descarga, igual desde la web que desde la API. */
+    public function descarga(array $datos): Response
+    {
+        return response($this->generar($datos), 200, [
+            'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            'Content-Disposition' => 'attachment; filename="'.self::nombreFichero($datos['finca'], $datos['anio']).'"',
+        ]);
+    }
+
+    public static function nombreFichero($finca, int $anio): string
+    {
+        $nombre = Str::slug($finca->paraje ?: $finca->provincia_nombre);
+
+        return "cuaderno-explotacion-{$nombre}-{$anio}.xlsx";
+    }
+
     /** Genera el .xlsx y devuelve su contenido binario. */
     public function generar(array $datos): string
     {
-        $libro = new Spreadsheet();
+        $libro = new Spreadsheet;
         $libro->getProperties()->setTitle("Cuaderno de explotación {$datos['anio']}")->setCreator('agriculNet');
 
         $this->hojaGeneral($libro->getActiveSheet(), $datos);
@@ -124,12 +142,12 @@ class ExportadorCUE
         $hoja->setTitle('Datos generales');
 
         $cabecera = [
-            ['Cuaderno de explotación — campaña ' . $datos['anio']],
+            ['Cuaderno de explotación — campaña '.$datos['anio']],
             [],
             ['Titular', $finca->titular_nombre],
             ['NIF', $finca->titular_nif],
             ['Nº REA', $finca->rea_numero],
-            ['Provincia', $finca->provincia_nombre . " ({$finca->provincia_cod})"],
+            ['Provincia', $finca->provincia_nombre." ({$finca->provincia_cod})"],
             ['Municipio (código INE)', $finca->codigo_ine],
             ['Paraje', $finca->paraje],
             [],
@@ -150,7 +168,7 @@ class ExportadorCUE
             $fila = $hoja->getHighestRow() + 2;
             $hoja->setCellValue("A{$fila}", 'Pendiente para completar el cuaderno:')->getStyle("A{$fila}")->getFont()->setBold(true);
             foreach ($datos['avisos'] as $aviso) {
-                $hoja->setCellValue('A' . ++$fila, '• ' . $aviso);
+                $hoja->setCellValue('A'.++$fila, '• '.$aviso);
             }
         }
     }
@@ -170,7 +188,7 @@ class ExportadorCUE
         $hoja->getStyle("A{$fila}:{$ultima}{$fila}")->getFill()
             ->setFillType(Fill::FILL_SOLID)->getStartColor()->setRGB('E7F3EA');
 
-        $hoja->fromArray($filas, null, 'A' . ($fila + 1), true);
+        $hoja->fromArray($filas, null, 'A'.($fila + 1), true);
 
         foreach (range(1, count($columnas)) as $i) {
             $hoja->getColumnDimensionByColumn($i)->setAutoSize(true);

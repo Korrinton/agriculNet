@@ -10,7 +10,7 @@ class ProfileController extends Controller
 {
     public function show(Request $request): JsonResponse
     {
-        return response()->json($request->user());
+        return response()->json($this->perfil($request));
     }
 
     public function update(Request $request): JsonResponse
@@ -21,6 +21,12 @@ class ProfileController extends Controller
 
         $request->user()->update($data);
 
-        return response()->json($request->user()->fresh());
+        return response()->json($this->perfil($request));
+    }
+
+    /** Solo los datos del perfil: nada de campos internos (is_admin, bloqueado_at…). */
+    private function perfil(Request $request): array
+    {
+        return $request->user()->only(['id', 'name', 'email', 'alertas_por_correo', 'created_at']);
     }
 }

@@ -30,28 +30,28 @@ class MetricasUso
 
         return [
             'usuarios' => [
-                'total'      => User::count(),
-                'activos'    => User::where('ultimo_acceso_at', '>=', $hace)->count(),
-                'nuevos'     => User::where('created_at', '>=', $hace)->count(),
+                'total' => User::count(),
+                'activos' => User::where('ultimo_acceso_at', '>=', $hace)->count(),
+                'nuevos' => User::where('created_at', '>=', $hace)->count(),
                 'bloqueados' => User::whereNotNull('bloqueado_at')->count(),
             ],
             'explotaciones' => [
-                'fincas'    => Finca::count(),
-                'parcelas'  => Parcela::count(),
+                'fincas' => Finca::count(),
+                'parcelas' => Parcela::count(),
                 'hectareas' => (float) Parcela::sum('superficie_ha'),
             ],
             'porCultivo' => $this->hectareasPorCultivo(),
             'registrosAnio' => [
-                'Tratamientos'   => Tratamiento::whereYear('fecha', $anio)->count(),
-                'Observaciones'  => RegistroFenologico::whereYear('fecha_observacion', $anio)->count(),
-                'Fertilizaciones' => Fertilizacion::whereYear('fecha', $anio)->count(),
-                'Riegos'         => Riego::whereYear('fecha', $anio)->count(),
-                'Cosechas'       => Cosecha::whereYear('fecha', $anio)->count(),
-                'Gastos'         => Coste::whereYear('fecha', $anio)->count(),
+                'Tratamientos' => Tratamiento::whereBetween('fecha', ["{$anio}-01-01", "{$anio}-12-31"])->count(),
+                'Observaciones' => RegistroFenologico::whereBetween('fecha_observacion', ["{$anio}-01-01", "{$anio}-12-31"])->count(),
+                'Fertilizaciones' => Fertilizacion::whereBetween('fecha', ["{$anio}-01-01", "{$anio}-12-31"])->count(),
+                'Riegos' => Riego::whereBetween('fecha', ["{$anio}-01-01", "{$anio}-12-31"])->count(),
+                'Cosechas' => Cosecha::whereBetween('fecha', ["{$anio}-01-01", "{$anio}-12-31"])->count(),
+                'Gastos' => Coste::whereBetween('fecha', ["{$anio}-01-01", "{$anio}-12-31"])->count(),
             ],
             'tratamientosPorMes' => $this->porMes(Tratamiento::query(), 'fecha', $hoy),
-            'altasPorMes'        => $this->porMes(User::query(), 'created_at', $hoy),
-            'anio'               => $anio,
+            'altasPorMes' => $this->porMes(User::query(), 'created_at', $hoy),
+            'anio' => $anio,
         ];
     }
 
@@ -80,9 +80,9 @@ class MetricasUso
         for ($mes = $desde->copy(); $mes->lte($hoy); $mes->addMonth()) {
             $clave = $mes->format('Y-m');
             $meses[] = [
-                'mes'      => $clave,
+                'mes' => $clave,
                 'etiqueta' => ucfirst($mes->locale('es')->isoFormat('MMM YY')),
-                'total'    => (int) ($totales[$clave] ?? 0),
+                'total' => (int) ($totales[$clave] ?? 0),
             ];
         }
 

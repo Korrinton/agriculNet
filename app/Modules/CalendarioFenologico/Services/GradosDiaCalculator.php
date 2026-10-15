@@ -13,6 +13,14 @@ class GradosDiaCalculator
 {
     private const TEMPERATURA_BASE_DEFAULT = 10.0;
 
+    /**
+     * Series ya calculadas por estación/campaña: el recálculo diario recorre todas las
+     * viñas y muchas comparten estación, así que los datos se consultan una sola vez.
+     *
+     * @var array<string, Collection<string, float>>
+     */
+    private array $seriesPorEstacion = [];
+
     /** Ciclo vegetativo de la vid (índice de Winkler): del 1 de abril al 31 de octubre. */
     public static function cicloVegetativo(int $anio): array
     {
@@ -32,6 +40,12 @@ class GradosDiaCalculator
             return collect();
         }
 
+        return $this->seriesPorEstacion["{$estacionId}:{$anio}:{$base}"] ??= $this->calcularSerie($estacionId, $anio, $base);
+    }
+
+    /** @return Collection<string, float> */
+    private function calcularSerie(int $estacionId, int $anio, float $base): Collection
+    {
         [$desde, $hasta] = self::cicloVegetativo($anio);
         $acumulado = 0.0;
 
@@ -67,12 +81,12 @@ class GradosDiaCalculator
                 ->delete();
 
             GradoDia::insert($serie->map(fn (float $acumulado, string $fecha) => [
-                'parcela_id'       => $parcela->id,
-                'fecha'            => $fecha,
-                'acumulado'        => $acumulado,
+                'parcela_id' => $parcela->id,
+                'fecha' => $fecha,
+                'acumulado' => $acumulado,
                 'temperatura_base' => $base,
-                'created_at'       => $ahora,
-                'updated_at'       => $ahora,
+                'created_at' => $ahora,
+                'updated_at' => $ahora,
             ])->values()->all());
         });
 

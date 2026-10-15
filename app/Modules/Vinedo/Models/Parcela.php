@@ -34,21 +34,21 @@ class Parcela extends Model
     ];
 
     protected $casts = [
-        'superficie_ha'  => 'decimal:4',
+        'superficie_ha' => 'decimal:4',
         'año_plantacion' => 'integer',
-        'agregado'       => 'integer',
-        'poligono'       => 'integer',
+        'agregado' => 'integer',
+        'poligono' => 'integer',
         'parcela_sigpac' => 'integer',
-        'recinto'        => 'integer',
+        'recinto' => 'integer',
     ];
 
     /** Usos de la parcela y el cultivo de las variedades que admite cada uno. */
     public const CULTIVO_POR_USO = [
-        'Secano'            => 'herbaceo',
+        'Secano' => 'herbaceo',
         'Viña en espaldera' => 'vid',
-        'Viña en vaso'      => 'vid',
-        'Olivar'            => 'olivo',
-        'Pistachos'         => 'pistacho',
+        'Viña en vaso' => 'vid',
+        'Olivar' => 'olivo',
+        'Pistachos' => 'pistacho',
     ];
 
     public static function usos(): array
@@ -64,7 +64,7 @@ class Parcela extends Model
     /** Referencia SIGPAC completa: provincia:municipio:agregado:zona:polígono:parcela:recinto. */
     public function getReferenciaSigpacAttribute(): ?string
     {
-        if (!$this->poligono || !$this->parcela_sigpac || !$this->finca) {
+        if (! $this->poligono || ! $this->parcela_sigpac || ! $this->finca) {
             return null;
         }
 
@@ -75,11 +75,17 @@ class Parcela extends Model
         );
     }
 
+    /** Nombre cuando el formulario lo deja vacío: el de la parcela SIGPAC o la alternativa. */
+    public static function nombrePorDefecto(?string $nombre, ?int $parcelaSigpac, string $alternativa = 'Parcela'): string
+    {
+        return $nombre ?: ($parcelaSigpac ? 'Parcela '.$parcelaSigpac : $alternativa);
+    }
+
     /** Nombre corto para listados: «Pol. 70 · Par. 126» o el nombre si no hay referencia. */
     public function getEtiquetaAttribute(): string
     {
         return $this->poligono && $this->parcela_sigpac
-            ? "Pol. {$this->poligono} · Par. {$this->parcela_sigpac}" . ($this->recinto ? " · Rec. {$this->recinto}" : '')
+            ? "Pol. {$this->poligono} · Par. {$this->parcela_sigpac}".($this->recinto ? " · Rec. {$this->recinto}" : '')
             : $this->nombre;
     }
 

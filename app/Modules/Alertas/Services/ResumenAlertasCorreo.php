@@ -40,7 +40,8 @@ class ResumenAlertasCorreo
                 DB::transaction(function () use ($user, $pendientes, $aEnviar, $ahora) {
                     Alerta::whereIn('id', $pendientes->pluck('id'))->update(['notificada_at' => $ahora]);
                     if ($aEnviar->isNotEmpty()) {
-                        Mail::to($user)->queue(new ResumenAlertas($user, $this->porFinca($aEnviar)));
+                        // afterCommit: que el correo no salga si la transacción se deshace
+                        Mail::to($user)->queue((new ResumenAlertas($user, $this->porFinca($aEnviar)))->afterCommit());
                     }
                 });
 
@@ -70,9 +71,9 @@ class ResumenAlertasCorreo
         return $alertas
             ->groupBy(fn (Alerta $a) => $a->parcela?->finca?->paraje ?: ($a->parcela?->finca?->provincia_nombre ?? 'Sin finca'))
             ->map(fn (Collection $deFinca) => $deFinca->map(fn (Alerta $a) => [
-                'nivel'   => $a->nivel,
+                'nivel' => $a->nivel,
                 'mensaje' => $a->mensaje,
-                'fecha'   => $a->created_at->timezone('Europe/Madrid')->format('d/m'),
+                'fecha' => $a->created_at->timezone('Europe/Madrid')->format('d/m'),
             ])->values()->all())
             ->all();
     }

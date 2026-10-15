@@ -3,6 +3,9 @@
 namespace App\Modules\Tratamientos\Http\Controllers\Web;
 
 use App\Http\Controllers\Controller;
+use App\Modules\CalendarioFenologico\Models\EstadoFenologico;
+use App\Modules\Tratamientos\Http\Requests\GuardarTratamientoRequest;
+use App\Modules\Tratamientos\Http\Requests\TratarFincaRequest;
 use App\Modules\Tratamientos\Models\ProductoFitosanitario;
 use App\Modules\Tratamientos\Models\Tratamiento;
 use App\Modules\Tratamientos\Services\ImportadorFitosanitarios;
@@ -12,8 +15,6 @@ use App\Modules\Vinedo\Models\Parcela;
 use Illuminate\Http\Request;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Collection;
-use Illuminate\Validation\Rule;
-use Illuminate\Validation\ValidationException;
 
 class TratamientoWebController extends Controller
 {
@@ -22,10 +23,10 @@ class TratamientoWebController extends Controller
     public function index()
     {
         $fincas = Finca::where('user_id', auth()->id())
-            ->with(['parcelas.tratamientos.producto'])
+            ->with('parcelas')
             ->get();
 
-        $tratamientos = Tratamiento::whereHas('parcela.finca', fn($q) => $q->where('user_id', auth()->id()))
+        $tratamientos = Tratamiento::whereHas('parcela.finca', fn ($q) => $q->where('user_id', auth()->id()))
             ->with(['parcela.finca', 'producto', 'coste'])
             ->latest('fecha')
             ->paginate(30);
@@ -39,7 +40,7 @@ class TratamientoWebController extends Controller
 
         return view('tratamientos.create', $this->datosFormulario($request, $parcela->finca, collect([$parcela])) + [
             'parcela' => $parcela,
-            'finca'   => null,
+            'finca' => null,
         ]);
     }
 
@@ -50,7 +51,7 @@ class TratamientoWebController extends Controller
 
         $datos = $this->datosFormulario($request, $parcela->finca, collect([$parcela]));
         // El producto del tratamiento se ofrece aunque ya esté cancelado o no figure para el cultivo
-        if (!$datos['productos']->contains('id', $tratamiento->producto_id)) {
+        if (! $datos['productos']->contains('id', $tratamiento->producto_id)) {
             $actual = ProductoFitosanitario::whereKey($tratamiento->producto_id)->conPrecioDe($request->user())->with('plazosSeguridad')->first();
             $this->adjuntarPlazosOficiales(collect([$actual]));
             $datos['productos']->prepend($actual);
@@ -58,36 +59,28 @@ class TratamientoWebController extends Controller
         $datos['productoElegido'] = old('producto_id', $tratamiento->producto_id);
 
         return view('tratamientos.create', $datos + [
-            'parcela'     => $parcela,
-            'finca'       => null,
+            'parcela' => $parcela,
+            'finca' => null,
             'tratamiento' => $tratamiento,
         ]);
     }
 
-    public function update(Request $request, Tratamiento $tratamiento)
+    public function update(GuardarTratamientoRequest $request, Tratamiento $tratamiento)
     {
         $parcela = $tratamiento->parcela;
         $this->authorize('update', $parcela->finca);
 
-        $validated = $request->validate($this->reglas($request) + [
-            'superficie_tratada_ha' => 'nullable|numeric|gt:0|lte:' . $parcela->superficie_ha,
-        ]);
-
-        $this->service->actualizar($tratamiento, $request->user(), $validated + ['superficie_tratada_ha' => null]);
+        $this->service->actualizar($tratamiento, $request->user(), $request->validated() + ['superficie_tratada_ha' => null]);
 
         return redirect()->route('vinedo.parcelas.show', $parcela)
             ->with('success', 'Tratamiento actualizado.');
     }
 
-    public function store(Request $request, Parcela $parcela)
+    public function store(GuardarTratamientoRequest $request, Parcela $parcela)
     {
         $this->authorize('update', $parcela->finca);
 
-        $validated = $request->validate($this->reglas($request) + [
-            'superficie_tratada_ha' => 'nullable|numeric|gt:0|lte:' . $parcela->superficie_ha,
-        ]);
-
-        $this->service->registrar($parcela, $request->user(), $validated);
+        $this->service->registrar($parcela, $request->user(), $request->validated());
 
         return redirect()->route('vinedo.parcelas.show', $parcela)
             ->with('success', 'Tratamiento registrado correctamente.');
@@ -105,35 +98,19 @@ class TratamientoWebController extends Controller
         }
 
         return view('tratamientos.create', $this->datosFormulario($request, $finca, $parcelas) + [
-            'parcela'  => null,
-            'finca'    => $finca,
+            'parcela' => null,
+            'finca' => $finca,
             'parcelas' => $parcelas,
-            'elegir'   => $request->boolean('elegir'),
+            'elegir' => $request->boolean('elegir'),
         ]);
     }
 
-    public function storeFinca(Request $request, Finca $finca)
+    public function storeFinca(TratarFincaRequest $request, Finca $finca)
     {
         $this->authorize('update', $finca);
 
-        $validated = $request->validate($this->reglas($request) + [
-            'parcelas'   => 'required|array|min:1',
-            'parcelas.*' => ['integer', Rule::in($finca->parcelas()->pluck('id')->all())],
-        ], [
-            'parcelas.required' => 'Marca al menos una parcela.',
-            'parcelas.*.in'     => 'Alguna de las parcelas no es de esta finca.',
-        ]);
-
+        $validated = $request->validated();
         $parcelas = $finca->parcelas()->with('variedad')->whereIn('id', $validated['parcelas'])->orderBy('id')->get();
-        $producto = ProductoFitosanitario::find($validated['producto_id']);
-
-        $noAutorizadas = $parcelas->filter(fn ($p) => $producto->autorizadoPara(ImportadorFitosanitarios::cultivoRegistroDe($p)) === false);
-        if ($noAutorizadas->isNotEmpty()) {
-            throw ValidationException::withMessages(['parcelas' => sprintf(
-                '%s no está autorizado en el Registro del MAPA para: %s.',
-                $producto->nombre, $noAutorizadas->map(fn ($p) => "{$p->etiqueta} ({$p->uso})")->join(', '),
-            )]);
-        }
 
         $tratamientos = $this->service->registrarEnParcelas($parcelas, $request->user(), Arr::except($validated, 'parcelas'));
 
@@ -151,32 +128,6 @@ class TratamientoWebController extends Controller
 
         return redirect()->route('vinedo.parcelas.show', $parcela)
             ->with('success', 'Tratamiento eliminado.');
-    }
-
-    private function reglas(Request $request): array
-    {
-        return [
-            'producto_id' => ['required', ProductoFitosanitario::reglaVisiblePara($request->user())],
-            'fecha'       => 'required|date|before_or_equal:today',
-            'dosis_l_ha'  => 'required|numeric|min:0.001',
-            'plazo_seguridad_dias' => 'nullable|integer|min:0|max:255',
-            'precio_unitario'      => 'nullable|numeric|min:0|max:99999',
-            'motivo'      => 'nullable|string|max:500',
-            // Datos que exigen el Reglamento (UE) 2023/564 y la Orden APA/204/2023 en el registro de tratamientos
-            'hora_inicio'             => 'nullable|date_format:H:i',
-            'bbch'                    => ['nullable', 'regex:/^\d{2}$/'],
-            'justificacion'           => 'nullable|string|max:500',
-            'aplicador_nombre'        => 'nullable|string|max:255',
-            'aplicador_nif'           => 'nullable|string|max:20',
-            'aplicador_ropo'          => 'nullable|string|max:50',
-            'equipo_roma'             => 'nullable|string|max:50',
-            'equipo_inspeccion_fecha' => 'nullable|date|before_or_equal:today',
-            'asesor_nombre'           => 'nullable|string|max:255',
-            'asesor_nif'              => 'nullable|string|max:20',
-            'asesor_ropo'             => 'nullable|string|max:50',
-            'asesor_fecha_validacion' => 'nullable|date|before_or_equal:today',
-            'eficacia'                => ['nullable', Rule::in(array_keys(Tratamiento::EFICACIAS))],
-        ];
     }
 
     /** @param Collection<int, Parcela> $parcelas */
@@ -210,7 +161,12 @@ class TratamientoWebController extends Controller
         // Estadio de la última observación fenológica (una parcela; en la finca se toma el de cada una al guardar)
         $bbchObservado = $parcelas->count() === 1 ? TratamientoService::bbchObservado($parcelas->first(), now()) : null;
 
-        return compact('productos', 'ultimo', 'plazosAnteriores', 'productoElegido', 'bbchObservado');
+        // Lista de estados BBCH para el desplegable, solo si alguna parcela es viña
+        $estadosBbch = $parcelas->contains(fn (Parcela $p) => $p->esVina())
+            ? EstadoFenologico::orderBy('orden')->get(['codigo_bbch', 'nombre'])
+            : collect();
+
+        return compact('productos', 'ultimo', 'plazosAnteriores', 'productoElegido', 'bbchObservado', 'estadosBbch');
     }
 
     /** Para el formulario: «plazos» = {cultivo: días} oficiales de cada producto (0 si no procede). */

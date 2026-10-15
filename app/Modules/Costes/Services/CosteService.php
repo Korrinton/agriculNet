@@ -11,17 +11,18 @@ class CosteService
     public function costesTotalesPorCategoria(Parcela $parcela, int $año): Collection
     {
         return Coste::where('parcela_id', $parcela->id)
-            ->whereYear('fecha', $año)
-            ->with('categoria')
-            ->get()
-            ->groupBy('categoria.nombre')
-            ->map(fn ($grupo) => $grupo->sum('importe'));
+            ->whereBetween('fecha', ["{$año}-01-01", "{$año}-12-31"])
+            ->join('categoria_costes', 'categoria_costes.id', '=', 'costes.categoria_id')
+            ->groupBy('categoria_costes.nombre')
+            ->selectRaw('categoria_costes.nombre, SUM(costes.importe) AS total')
+            ->pluck('total', 'nombre')
+            ->map(fn ($total) => (float) $total);
     }
 
     public function costesPorHectarea(Parcela $parcela, int $año): float
     {
         $total = Coste::where('parcela_id', $parcela->id)
-            ->whereYear('fecha', $año)
+            ->whereBetween('fecha', ["{$año}-01-01", "{$año}-12-31"])
             ->sum('importe');
 
         return $parcela->superficie_ha > 0

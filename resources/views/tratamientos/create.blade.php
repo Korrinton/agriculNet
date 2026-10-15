@@ -1,5 +1,4 @@
 @php
-    use App\Modules\CalendarioFenologico\Models\EstadoFenologico;
     use App\Modules\CuadernoDigital\Services\CuadernoCampana;
     use App\Modules\Tratamientos\Models\ProductoFitosanitario;
     use App\Modules\Tratamientos\Models\Tratamiento;
@@ -21,8 +20,6 @@
     // Fechas (el modelo las da como Carbon) en el formato de <input type="date">
     $fechaValor = fn (string $campo, $propuesto = null) => old($campo, ($editando ? $tratamiento->$campo : $propuesto)?->toDateString());
     $parcelasForm = $deFinca ? $parcelas : collect([$parcela]);
-    $hayVina = $parcelasForm->contains(fn ($p) => $p->esVina());
-    $estadosBbch = $hayVina ? EstadoFenologico::orderBy('orden')->get(['codigo_bbch', 'nombre']) : collect();
     $eppo = $deFinca ? null : ($editando ? $tratamiento->codigoEppo() : ImportadorFitosanitarios::codigoEppoDe($parcela));
     $bbchObservado ??= null;
     // Para resources/js/paginas/tratamiento.js

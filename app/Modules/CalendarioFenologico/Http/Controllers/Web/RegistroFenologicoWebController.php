@@ -3,6 +3,7 @@
 namespace App\Modules\CalendarioFenologico\Http\Controllers\Web;
 
 use App\Http\Controllers\Controller;
+use App\Modules\CalendarioFenologico\Http\Requests\GuardarRegistroFenologicoRequest;
 use App\Modules\CalendarioFenologico\Models\EstadoFenologico;
 use App\Modules\CalendarioFenologico\Models\RegistroFenologico;
 use App\Modules\CalendarioFenologico\Services\CalendarioCampana;
@@ -21,7 +22,7 @@ class RegistroFenologicoWebController extends Controller
                 'parcelas' => function ($q) {
                     $q->vina()->with([
                         'variedad',
-                        'registrosFenologicos' => fn($r) => $r->with('estado')->latest('fecha_observacion')->limit(1),
+                        'registrosFenologicos' => fn ($r) => $r->with('estado')->latest('fecha_observacion')->limit(1),
                     ]);
                 },
             ])
@@ -47,7 +48,7 @@ class RegistroFenologicoWebController extends Controller
         // Historial reciente global
         $registros = RegistroFenologico::whereHas(
             'parcela.finca',
-            fn($q) => $q->where('user_id', auth()->id())
+            fn ($q) => $q->where('user_id', auth()->id())
         )
             ->with(['parcela.finca', 'estado'])
             ->latest('fecha_observacion')
@@ -76,7 +77,7 @@ class RegistroFenologicoWebController extends Controller
         return view('fenologia.create', compact('parcela', 'estados', 'ultimoRegistro'));
     }
 
-    public function store(Request $request, Parcela $parcela)
+    public function store(GuardarRegistroFenologicoRequest $request, Parcela $parcela)
     {
         $this->authorize('update', $parcela->finca);
 
@@ -85,14 +86,8 @@ class RegistroFenologicoWebController extends Controller
                 ->with('error', 'El calendario fenológico usa la escala BBCH de la vid: solo está disponible en parcelas de viña.');
         }
 
-        $validated = $request->validate([
-            'estado_fenologico_id' => 'required|exists:estados_fenologicos,id',
-            'fecha_observacion'    => 'required|date|before_or_equal:today',
-            'observaciones'        => 'nullable|string|max:1000',
-        ]);
-
         $parcela->registrosFenologicos()->create(
-            array_merge($validated, ['user_id' => $request->user()->id])
+            array_merge($request->validated(), ['user_id' => $request->user()->id])
         );
 
         return redirect()->route('vinedo.parcelas.show', $parcela)

@@ -1,0 +1,14 @@
+includes:
+    - vendor/larastan/larastan/extension.neon
+    # Errores anteriores a adoptar phpstan (casi todos, relaciones Eloquent sin genéricos);
+    # quitar entradas de la línea base según se vayan anotando los modelos
+    - phpstan-baseline.neon
+
+parameters:
+    level: 5
+    paths:
+        - app
+    # Larastan deduce las columnas de los modelos leyendo las migraciones
+    databaseMigrationsPath:
+        - database/migrations
+    reportUnmatchedIgnoredErrors: false

@@ -2,6 +2,7 @@
 
 namespace App\Modules\Tratamientos\Services;
 
+use App\Models\User;
 use App\Modules\Alertas\Models\Alerta;
 use App\Modules\CalendarioFenologico\Models\RegistroFenologico;
 use App\Modules\Costes\Models\CategoriaCoste;
@@ -10,14 +11,16 @@ use App\Modules\Tratamientos\Events\TratamientoRegistrado;
 use App\Modules\Tratamientos\Models\ProductoFitosanitario;
 use App\Modules\Tratamientos\Models\Tratamiento;
 use App\Modules\Vinedo\Models\Parcela;
-use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 
 class TratamientoService
 {
     public const CATEGORIA_COSTE = 'Productos fitosanitarios';
+
+    private ?CategoriaCoste $categoriaCoste = null;
 
     /** Una observación fenológica sirve para proponer el estadio BBCH de un tratamiento durante este tiempo. */
     public const DIAS_VALIDEZ_OBSERVACION = 21;
@@ -45,6 +48,7 @@ class TratamientoService
         }
 
         $producto = ProductoFitosanitario::findOrFail($data['producto_id']);
+        $this->comprobarAutorizado($producto, $parcelas);
         // La dosis va en la unidad del producto; se guarda por si después se reclasifica
         $data['unidad'] = $producto->unidad;
 
@@ -64,12 +68,13 @@ class TratamientoService
 
                 // Cultivo (código EPPO) y estadio de cada parcela: con varias parcelas pueden ser distintos
                 $tratamiento = Tratamiento::create(array_merge($data, [
-                    'parcela_id'   => $parcela->id,
-                    'user_id'      => $user->id,
+                    'parcela_id' => $parcela->id,
+                    'user_id' => $user->id,
                     'cultivo_eppo' => ImportadorFitosanitarios::codigoEppoDe($parcela),
-                    'bbch'         => ($data['bbch'] ?? null) ?: self::bbchObservado($parcela, Carbon::parse($data['fecha'])),
+                    'bbch' => ($data['bbch'] ?? null) ?: self::bbchObservado($parcela, Carbon::parse($data['fecha'])),
                 ]));
                 $tratamiento->setRelation('parcela', $parcela);
+                $tratamiento->setRelation('producto', $producto);
                 $this->registrarCoste($tratamiento);
 
                 return $tratamiento;
@@ -100,7 +105,7 @@ class TratamientoService
             }
 
             $tratamiento->update($data);
-            $tratamiento->unsetRelation('producto');
+            $tratamiento->setRelation('producto', $producto);
 
             $tratamiento->coste()->delete();
             $this->registrarCoste($tratamiento);
@@ -113,6 +118,26 @@ class TratamientoService
         TratamientoRegistrado::dispatch($tratamiento);
 
         return $tratamiento;
+    }
+
+    /**
+     * El Registro del MAPA no autoriza cualquier producto en cualquier cultivo: se rechaza la
+     * aplicación si el producto consta como no autorizado para el cultivo de alguna parcela.
+     *
+     * @param  Collection<int, Parcela>  $parcelas
+     */
+    private function comprobarAutorizado(ProductoFitosanitario $producto, Collection $parcelas): void
+    {
+        $noAutorizadas = $parcelas->filter(
+            fn (Parcela $p) => $producto->autorizadoPara(ImportadorFitosanitarios::cultivoRegistroDe($p)) === false
+        );
+
+        if ($noAutorizadas->isNotEmpty()) {
+            throw ValidationException::withMessages(['parcelas' => sprintf(
+                '%s no está autorizado en el Registro del MAPA para: %s.',
+                $producto->nombre, $noAutorizadas->map(fn (Parcela $p) => "{$p->etiqueta} ({$p->uso})")->join(', '),
+            )]);
+        }
     }
 
     /**
@@ -131,22 +156,22 @@ class TratamientoService
     private function registrarCoste(Tratamiento $tratamiento): void
     {
         $importe = $tratamiento->importeProducto();
-        if (!$importe || $importe < 0.01) {
+        if (! $importe || $importe < 0.01) {
             return;
         }
 
-        $categoria = CategoriaCoste::firstOrCreate(['nombre' => self::CATEGORIA_COSTE], ['tipo' => 'insumos']);
+        $categoria = $this->categoriaCoste ??= CategoriaCoste::firstOrCreate(['nombre' => self::CATEGORIA_COSTE], ['tipo' => 'insumos']);
         $producto = $tratamiento->producto;
         $num = fn ($v, $d) => rtrim(rtrim(number_format((float) $v, $d, ',', '.'), '0'), ',');
 
         Coste::create([
-            'parcela_id'     => $tratamiento->parcela_id,
-            'categoria_id'   => $categoria->id,
+            'parcela_id' => $tratamiento->parcela_id,
+            'categoria_id' => $categoria->id,
             'tratamiento_id' => $tratamiento->id,
-            'user_id'        => $tratamiento->user_id,
-            'fecha'          => $tratamiento->fecha,
-            'importe'        => $importe,
-            'descripcion'    => mb_substr(sprintf(
+            'user_id' => $tratamiento->user_id,
+            'fecha' => $tratamiento->fecha,
+            'importe' => $importe,
+            'descripcion' => mb_substr(sprintf(
                 '%s: %s %s × %s ha × %s %s',
                 $producto->nombre,
                 $num($tratamiento->dosis_l_ha, 3),

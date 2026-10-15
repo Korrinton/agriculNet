@@ -24,21 +24,23 @@ class RiegoWebController extends Controller
         $parcelaIds = $finca->parcelas->pluck('id');
 
         $actual = now('Europe/Madrid')->year;
-        $campanas = Riego::whereIn('parcela_id', $parcelaIds)->pluck('fecha')
-            ->map(fn ($f) => $f->year)->push($actual)->unique()->sortDesc()->values()->all();
+        $campanas = Riego::whereIn('parcela_id', $parcelaIds)
+            ->selectRaw('DISTINCT EXTRACT(YEAR FROM fecha)::integer AS anio')
+            ->pluck('anio')->push($actual)->unique()->sortDesc()->values()->all();
         $anio = (int) $request->query('anio', $actual);
         $anio = in_array($anio, $campanas, true) ? $anio : $actual;
 
         $riegos = Riego::with('parcela.finca')
             ->whereIn('parcela_id', $parcelaIds)
-            ->whereYear('fecha', $anio)
+            ->whereBetween('fecha', ["{$anio}-01-01", "{$anio}-12-31"])
             ->orderByDesc('fecha')->orderByDesc('id')
             ->get();
 
         // Agua de lluvia registrada en la estación de la finca en la misma campaña
         $lluvia = null;
         if ($finca->estacion) {
-            $datos = DatoMeteorologico::where('estacion_id', $finca->estacion->id)->whereYear('fecha', $anio);
+            $datos = DatoMeteorologico::where('estacion_id', $finca->estacion->id)
+                ->whereBetween('fecha', ["{$anio}-01-01", "{$anio}-12-31"]);
             $lluvia = ['mm' => (float) (clone $datos)->sum('precipitacion_mm'), 'dias' => $datos->count()];
         }
 
@@ -49,11 +51,11 @@ class RiegoWebController extends Controller
 
             return [
                 'parcela' => $parcela,
-                'riegos'  => $deParcela->count(),
-                'm3'      => $m3,
-                'm3_ha'   => $superficie > 0 ? $m3 / $superficie : null,
-                'mm'      => $superficie > 0 ? $m3 / $superficie / 10 : null,
-                'ultimo'  => $deParcela->max('fecha'),
+                'riegos' => $deParcela->count(),
+                'm3' => $m3,
+                'm3_ha' => $superficie > 0 ? $m3 / $superficie : null,
+                'mm' => $superficie > 0 ? $m3 / $superficie / 10 : null,
+                'ultimo' => $deParcela->max('fecha'),
             ];
         });
 
@@ -77,17 +79,17 @@ class RiegoWebController extends Controller
         $this->authorize('update', $finca);
 
         $validated = $request->validate([
-            'parcela_id'     => [
+            'parcela_id' => [
                 'required',
                 Rule::exists('parcelas', 'id')->where('finca_id', $finca->id)->whereNull('deleted_at')->where(fn ($q) => $q->where('uso', '!=', 'Secano')),
             ],
-            'fecha'          => 'required|date|before_or_equal:today',
-            'volumen_m3'     => 'required|numeric|gt:0',
-            'superficie_ha'  => 'nullable|numeric|gt:0',
+            'fecha' => 'required|date|before_or_equal:today',
+            'volumen_m3' => 'required|numeric|gt:0',
+            'superficie_ha' => 'nullable|numeric|gt:0',
             'duracion_horas' => 'nullable|numeric|gt:0|max:240',
-            'sistema'        => ['required', Rule::in(array_keys(Riego::SISTEMAS))],
-            'origen'         => ['nullable', Rule::in(array_keys(Riego::ORIGENES))],
-            'observaciones'  => 'nullable|string|max:500',
+            'sistema' => ['required', Rule::in(array_keys(Riego::SISTEMAS))],
+            'origen' => ['nullable', Rule::in(array_keys(Riego::ORIGENES))],
+            'observaciones' => 'nullable|string|max:500',
         ], [
             'parcela_id.exists' => 'Elige una parcela de regadío de esta finca (las de secano no se riegan).',
         ]);

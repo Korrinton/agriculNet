@@ -18,36 +18,34 @@ class ImportadorMeteorologico
      */
     public function importarDesdeAemet(EstacionMeteorologica $estacion, Carbon $desde, Carbon $hasta): int
     {
-        $fechaIni = $desde->format('Y-m-d') . 'T00:00:00UTC';
-        $fechaFin = $hasta->format('Y-m-d') . 'T23:59:59UTC';
-        $idema    = $estacion->codigo_externo;
+        $fechaIni = $desde->format('Y-m-d').'T00:00:00UTC';
+        $fechaFin = $hasta->format('Y-m-d').'T23:59:59UTC';
+        $idema = $estacion->codigo_externo;
 
         $registros = $this->aemet->get(
             "/valores/climatologicos/diarios/datos/fechaini/{$fechaIni}/fechafin/{$fechaFin}/estacion/{$idema}/"
         );
 
-        $importados = 0;
+        // Un upsert por lote en vez de una consulta por día: un año son 365 filas
+        $filas = collect($registros)
+            ->filter(fn ($r) => ! empty($r['fecha']))
+            ->map(fn ($r) => [
+                'estacion_id' => $estacion->id,
+                'fecha' => $r['fecha'],
+                'temp_max' => AemetClient::parseDecimal($r['tmax'] ?? null),
+                'temp_min' => AemetClient::parseDecimal($r['tmin'] ?? null),
+                'precipitacion_mm' => AemetClient::parseDecimal($r['prec'] ?? null),
+                'humedad_pct' => isset($r['hrMedia']) ? (int) AemetClient::parseDecimal($r['hrMedia']) : null,
+                'viento_kmh' => AemetClient::parseDecimal($r['velmedia'] ?? null),
+            ]);
 
-        foreach ($registros as $r) {
-            if (empty($r['fecha'])) {
-                continue;
-            }
+        $filas->chunk(500)->each(fn ($lote) => DatoMeteorologico::upsert(
+            $lote->values()->all(),
+            ['estacion_id', 'fecha'],
+            ['temp_max', 'temp_min', 'precipitacion_mm', 'humedad_pct', 'viento_kmh'],
+        ));
 
-            DatoMeteorologico::updateOrCreate(
-                ['estacion_id' => $estacion->id, 'fecha' => $r['fecha']],
-                [
-                    'temp_max'         => AemetClient::parseDecimal($r['tmax'] ?? null),
-                    'temp_min'         => AemetClient::parseDecimal($r['tmin'] ?? null),
-                    'precipitacion_mm' => AemetClient::parseDecimal($r['prec'] ?? null),
-                    'humedad_pct'      => isset($r['hrMedia']) ? (int) AemetClient::parseDecimal($r['hrMedia']) : null,
-                    'viento_kmh'       => AemetClient::parseDecimal($r['velmedia'] ?? null),
-                ]
-            );
-
-            $importados++;
-        }
-
-        return $importados;
+        return $filas->count();
     }
 
     /**
@@ -60,7 +58,7 @@ class ImportadorMeteorologico
         $respuesta = $this->aemet->get("/prediccion/especifica/municipio/diaria/{$codigoIne}");
 
         $prediccion = $respuesta[0] ?? null;
-        if (!$prediccion || empty($prediccion['prediccion']['dia'])) {
+        if (! $prediccion || empty($prediccion['prediccion']['dia'])) {
             return 0;
         }
 
@@ -81,16 +79,16 @@ class ImportadorMeteorologico
                 [
                     'provincia_cod' => $provinciaCod,
                     'municipio_cod' => $municipioCod,
-                    'fecha'         => substr($dia['fecha'], 0, 10),
+                    'fecha' => substr($dia['fecha'], 0, 10),
                 ],
                 [
-                    'temp_max'           => $dia['temperatura']['maxima'] ?? null,
-                    'temp_min'           => $dia['temperatura']['minima'] ?? null,
+                    'temp_max' => $dia['temperatura']['maxima'] ?? null,
+                    'temp_min' => $dia['temperatura']['minima'] ?? null,
                     'prob_precipitacion' => $this->maximo($dia['probPrecipitacion'] ?? []),
-                    'humedad_max'        => $dia['humedadRelativa']['maxima'] ?? null,
-                    'humedad_min'        => $dia['humedadRelativa']['minima'] ?? null,
-                    'estado_cielo'       => $this->estadoCielo($dia['estadoCielo'] ?? []),
-                    'elaborado_at'       => $elaborado,
+                    'humedad_max' => $dia['humedadRelativa']['maxima'] ?? null,
+                    'humedad_min' => $dia['humedadRelativa']['minima'] ?? null,
+                    'estado_cielo' => $this->estadoCielo($dia['estadoCielo'] ?? []),
+                    'elaborado_at' => $elaborado,
                 ]
             );
 
@@ -114,8 +112,8 @@ class ImportadorMeteorologico
     /** Descripción del día completo o, si no viene (día en curso), la del primer tramo con datos. */
     private function estadoCielo(array $periodos): ?string
     {
-        $conDescripcion = array_values(array_filter($periodos, fn ($p) => !empty($p['descripcion'])));
-        if (!$conDescripcion) {
+        $conDescripcion = array_values(array_filter($periodos, fn ($p) => ! empty($p['descripcion'])));
+        if (! $conDescripcion) {
             return null;
         }
 
@@ -138,13 +136,14 @@ class ImportadorMeteorologico
             );
             $importados++;
         }
+
         return $importados;
     }
 
     public function ultimosDias(EstacionMeteorologica $estacion, int $dias = 30): Collection
     {
         return $estacion->datos()
-            ->whereDate('fecha', '>=', now()->subDays($dias))
+            ->where('fecha', '>=', now()->subDays($dias)->toDateString())
             ->orderBy('fecha')
             ->get();
     }

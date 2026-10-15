@@ -25,6 +25,9 @@ php artisan test --filter=test_usuario_puede_crear_finca_con_parcelas
 # Code style (Laravel Pint)
 ./vendor/bin/pint
 
+# Static analysis (Larastan, level 5 + phpstan-baseline.neon con los errores antiguos)
+composer run analyse
+
 # Asset build
 npm run build
 ```
@@ -49,6 +52,7 @@ All domain code lives under `app/Modules/<ModuleName>/` with a consistent intern
 ```
 app/Modules/<Module>/
 ├── Http/Controllers/     # Web/ and Api/ sub-dirs where needed
+├── Http/Requests/        # FormRequests compartidos por web y API
 ├── Models/
 ├── Routes/
 │   ├── api.php           # prefixed /api, middleware api
@@ -59,6 +63,8 @@ app/Modules/<Module>/
 ```
 
 **Route loading**: `ModulesServiceProvider` (`app/Providers/ModulesServiceProvider.php`) auto-loads `api.php` and `web.php` from every module listed in its `$modules` array. To add a new module, add its name to that array.
+
+**Validación compartida**: las reglas de cada entidad viven en un FormRequest de `Http/Requests` (`GuardarFincaRequest`, `GuardarParcelaRequest`, `GuardarTratamientoRequest`, `GuardarCosteRequest`, `GuardarRegistroFenologicoRequest`…) que usan tanto el controlador web como el de la API — nunca se duplican reglas en línea en los dos. Toda la API pasa por `throttle:api` (60/min, `RateLimiter` definido en `AppServiceProvider`). `Model::preventLazyLoading` está activo fuera de producción: una relación cargada perezosamente (N+1) lanza excepción en desarrollo y en los tests, así que toda relación que se recorra debe venir de `with()`/`load()` o de `setRelation()`.
 
 **Current modules**: `Vinedo`, `CalendarioFenologico`, `Meteorologia`, `Tratamientos`, `Costes`, `CuadernoDigital`, `Riegos`, `Alertas`, `Usuarios`, `Admin`.
 

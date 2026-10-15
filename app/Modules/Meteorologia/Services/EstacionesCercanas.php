@@ -20,7 +20,7 @@ class EstacionesCercanas
      */
     public function para(Finca $finca, int $limite = 15): Collection
     {
-        if (!$this->ubicar($finca)) {
+        if (! $this->ubicar($finca)) {
             return EstacionMeteorologica::where('fuente', 'aemet')
                 ->where('provincia_cod', $finca->provincia_cod)
                 ->orderBy('nombre')
@@ -28,19 +28,26 @@ class EstacionesCercanas
                 ->each(fn ($e) => $e->distancia_km = null);
         }
 
+        // El haversine se calcula en SQL: así no se traen las ~900 estaciones del inventario
         return EstacionMeteorologica::where('fuente', 'aemet')
             // (0, 0) es "sin coordenadas" en el inventario
             ->where(fn ($q) => $q->where('latitud', '!=', 0)->orWhere('longitud', '!=', 0))
+            ->selectRaw(
+                'estaciones_meteorologicas.*, 2 * ? * asin(least(1.0, sqrt('
+                .'power(sin(radians((latitud - ?) / 2)), 2)'
+                .' + cos(radians(?)) * cos(radians(latitud)) * power(sin(radians((longitud - ?) / 2)), 2)'
+                .'))) AS distancia_km',
+                [self::RADIO_TIERRA_KM, $finca->latitud, $finca->latitud, $finca->longitud],
+            )
+            ->orderBy('distancia_km')
+            ->limit($limite)
             ->get()
-            ->each(fn ($e) => $e->distancia_km = $this->distanciaKm($finca, $e))
-            ->sortBy('distancia_km')
-            ->take($limite)
-            ->values();
+            ->each(fn ($e) => $e->distancia_km = (float) $e->distancia_km);
     }
 
     public function distanciaA(Finca $finca, ?EstacionMeteorologica $estacion): ?float
     {
-        if (!$estacion || !$finca->tieneCoordenadas() || ((float) $estacion->latitud === 0.0 && (float) $estacion->longitud === 0.0)) {
+        if (! $estacion || ! $finca->tieneCoordenadas() || ((float) $estacion->latitud === 0.0 && (float) $estacion->longitud === 0.0)) {
             return null;
         }
 

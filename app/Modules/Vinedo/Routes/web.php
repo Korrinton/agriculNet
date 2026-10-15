@@ -9,12 +9,12 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     // Fincas
     Route::resource('vinedo/fincas', FincaWebController::class)->names([
-        'index'   => 'vinedo.fincas.index',
-        'create'  => 'vinedo.fincas.create',
-        'store'   => 'vinedo.fincas.store',
-        'show'    => 'vinedo.fincas.show',
-        'edit'    => 'vinedo.fincas.edit',
-        'update'  => 'vinedo.fincas.update',
+        'index' => 'vinedo.fincas.index',
+        'create' => 'vinedo.fincas.create',
+        'store' => 'vinedo.fincas.store',
+        'show' => 'vinedo.fincas.show',
+        'edit' => 'vinedo.fincas.edit',
+        'update' => 'vinedo.fincas.update',
         'destroy' => 'vinedo.fincas.destroy',
     ]);
 
@@ -32,7 +32,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::delete('vinedo/parcelas/{parcela}', [ParcelaWebController::class, 'destroy'])
         ->name('vinedo.parcelas.destroy');
 
-    // Proxy SIGPAC (por parcela)
+    // Proxy SIGPAC (por parcela): con límite porque cada fallo llega al servicio externo
     Route::get('vinedo/parcelas/{parcela}/sigpac', [SigpacProxyController::class, 'recinto'])
+        ->middleware('throttle:30,1')
         ->name('vinedo.parcelas.sigpac');
 });

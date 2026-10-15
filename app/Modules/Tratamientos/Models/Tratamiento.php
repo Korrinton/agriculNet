@@ -6,6 +6,8 @@ use App\Models\User;
 use App\Modules\Costes\Models\Coste;
 use App\Modules\Tratamientos\Services\ImportadorFitosanitarios;
 use App\Modules\Vinedo\Models\Parcela;
+use App\Support\Nif;
+use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasOne;
@@ -54,7 +56,7 @@ class Tratamiento extends Model
     public const VIGENCIA_INSPECCION_EQUIPO_ANIOS = 3;
 
     protected $casts = [
-        'fecha'      => 'date',
+        'fecha' => 'date',
         'dosis_l_ha' => 'decimal:4',
         'plazo_seguridad_dias' => 'integer',
         'precio_unitario' => 'decimal:2',
@@ -82,12 +84,12 @@ class Tratamiento extends Model
     /** Unidad de la dosis: dosis_l_ha va en litros o kilos por hectárea según el producto. */
     public function unidadDosis(): string
     {
-        return ($this->unidad ?? 'l') . '/ha';
+        return ($this->unidad ?? 'l').'/ha';
     }
 
     public function unidadPrecio(): string
     {
-        return '€/' . ($this->unidad ?? 'l');
+        return '€/'.($this->unidad ?? 'l');
     }
 
     public function superficieTratadaHa(): float
@@ -107,17 +109,12 @@ class Tratamiento extends Model
 
     public function setAplicadorNifAttribute(?string $valor): void
     {
-        $this->attributes['aplicador_nif'] = self::normalizarNif($valor);
+        $this->attributes['aplicador_nif'] = Nif::normalizar($valor);
     }
 
     public function setAsesorNifAttribute(?string $valor): void
     {
-        $this->attributes['asesor_nif'] = self::normalizarNif($valor);
-    }
-
-    private static function normalizarNif(?string $valor): ?string
-    {
-        return $valor !== null ? strtoupper(str_replace([' ', '-'], '', trim($valor))) : null;
+        $this->attributes['asesor_nif'] = Nif::normalizar($valor);
     }
 
     /** Hora de inicio como HH:MM (la base de datos la devuelve con segundos). */
@@ -135,7 +132,7 @@ class Tratamiento extends Model
     /** La inspección del equipo había caducado (o no constaba) el día del tratamiento. */
     public function inspeccionEquipoCaducada(): bool
     {
-        return !$this->equipo_inspeccion_fecha
+        return ! $this->equipo_inspeccion_fecha
             || $this->equipo_inspeccion_fecha->copy()->addYears(self::VIGENCIA_INSPECCION_EQUIPO_ANIOS)->lt($this->fecha);
     }
 
@@ -150,12 +147,13 @@ class Tratamiento extends Model
         return $this->plazo_seguridad_dias ?? $this->producto?->plazo_seguridad_dias;
     }
 
-    public function fechaFinalPlazoSeguridad(): ?\Carbon\Carbon
+    public function fechaFinalPlazoSeguridad(): ?Carbon
     {
         $plazo = $this->plazoSeguridadDias();
-        if (!$plazo) {
+        if (! $plazo) {
             return null;
         }
+
         return $this->fecha->copy()->addDays($plazo);
     }
 }

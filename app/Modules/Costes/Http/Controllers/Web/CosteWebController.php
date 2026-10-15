@@ -3,13 +3,13 @@
 namespace App\Modules\Costes\Http\Controllers\Web;
 
 use App\Http\Controllers\Controller;
+use App\Modules\Costes\Http\Requests\GuardarCosteRequest;
 use App\Modules\Costes\Models\CategoriaCoste;
 use App\Modules\Costes\Models\Coste;
 use App\Modules\Costes\Services\CosteService;
 use App\Modules\Vinedo\Models\Finca;
 use App\Modules\Vinedo\Models\Parcela;
 use Illuminate\Http\Request;
-use Illuminate\Validation\Rule;
 
 class CosteWebController extends Controller
 {
@@ -23,7 +23,7 @@ class CosteWebController extends Controller
 
         $base = fn () => Coste::whereHas('finca', fn ($q) => $q->where('user_id', auth()->id()))
             ->when($fincaId, fn ($q) => $q->where('finca_id', $fincaId))
-            ->whereYear('fecha', $año);
+            ->whereBetween('fecha', ["{$año}-01-01", "{$año}-12-31"]);
 
         $costes = $base()
             ->with(['finca', 'parcela', 'categoria'])
@@ -32,10 +32,15 @@ class CosteWebController extends Controller
             ->paginate(30)
             ->withQueryString();
 
-        $todos = $base()->with('categoria')->get();
-        $resumenPorCategoria = $todos->groupBy('categoria.nombre')->map(fn ($g) => $g->sum('importe'))->sortDesc();
+        $resumenPorCategoria = $base()
+            ->join('categoria_costes', 'categoria_costes.id', '=', 'costes.categoria_id')
+            ->groupBy('categoria_costes.nombre')
+            ->orderByRaw('SUM(costes.importe) DESC')
+            ->selectRaw('categoria_costes.nombre, SUM(costes.importe) AS total')
+            ->pluck('total', 'nombre')
+            ->map(fn ($total) => (float) $total);
         $totalAño = $resumenPorCategoria->sum();
-        $totalGenerales = $todos->whereNull('parcela_id')->sum('importe');
+        $totalGenerales = (float) $base()->whereNull('parcela_id')->sum('importe');
 
         $años = Coste::whereHas('finca', fn ($q) => $q->where('user_id', auth()->id()))
             ->selectRaw('EXTRACT(YEAR FROM fecha)::integer AS año')
@@ -73,13 +78,7 @@ class CosteWebController extends Controller
     {
         $this->authorize('update', $finca);
 
-        $validated = $request->validate([
-            'parcela_id'   => ['nullable', 'integer', Rule::in($finca->parcelas()->pluck('id')->all())],
-            'categoria_id' => 'required|exists:categoria_costes,id',
-            'fecha'        => 'required|date|before_or_equal:today',
-            'importe'      => 'required|numeric|min:0.01',
-            'descripcion'  => 'nullable|string|max:500',
-        ], [
+        $validated = $request->validate(GuardarCosteRequest::reglas($finca), [
             'parcela_id.in' => 'Esa parcela no es de esta finca.',
         ]);
 
@@ -102,9 +101,9 @@ class CosteWebController extends Controller
     private function formulario(Finca $finca, ?Parcela $parcela)
     {
         return view('costes.create', [
-            'finca'      => $finca,
-            'parcela'    => $parcela,
-            'parcelas'   => $finca->parcelas()->orderBy('id')->get(),
+            'finca' => $finca,
+            'parcela' => $parcela,
+            'parcelas' => $finca->parcelas()->orderBy('id')->get(),
             'categorias' => CategoriaCoste::orderBy('nombre')->get(),
         ]);
     }

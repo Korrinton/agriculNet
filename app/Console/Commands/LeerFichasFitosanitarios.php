@@ -17,7 +17,8 @@ use Throwable;
  */
 class LeerFichasFitosanitarios extends Command
 {
-    protected $signature   = 'fitosanitarios:fichas {--limite=150 : Fichas a leer como máximo} {--producto= : Leer solo este producto (id)}';
+    protected $signature = 'fitosanitarios:fichas {--limite=150 : Fichas a leer como máximo} {--producto= : Leer solo este producto (id)}';
+
     protected $description = 'Lee los plazos de seguridad oficiales de las fichas del Registro de Productos Fitosanitarios';
 
     private const RELEER_TRAS_DIAS = 60;
@@ -30,6 +31,7 @@ class LeerFichasFitosanitarios extends Command
 
         if ($productos->isEmpty()) {
             $this->info('No hay fichas pendientes de leer.');
+
             return self::SUCCESS;
         }
 
@@ -44,7 +46,7 @@ class LeerFichasFitosanitarios extends Command
                 Log::warning('Ficha de fitosanitario no leída', ['producto' => $producto->id, 'error' => $e->getMessage()]);
             }
             $bar->advance();
-            if (!app()->runningUnitTests()) {
+            if (! app()->runningUnitTests()) {
                 usleep(500_000);
             }
         }
@@ -52,12 +54,13 @@ class LeerFichasFitosanitarios extends Command
         $this->newLine();
         $this->table(['Fichas leídas', 'Errores'], [[$leidas, $errores]]);
 
-        return $errores && !$leidas ? self::FAILURE : self::SUCCESS;
+        return $errores && ! $leidas ? self::FAILURE : self::SUCCESS;
     }
 
     private function pendientes(int $limite)
     {
-        $cultivos = Parcela::with('variedad')->get()
+        // Solo hacen falta las combinaciones uso/variedad distintas, no todas las parcelas
+        $cultivos = Parcela::select('uso', 'variedad_id')->distinct()->with('variedad')->get()
             ->map(fn ($p) => ImportadorFitosanitarios::cultivoRegistroDe($p))
             ->filter()->unique()->values();
 

@@ -2,6 +2,7 @@
 
 namespace App\Modules\Alertas\Services;
 
+use App\Modules\Alertas\Models\Alerta;
 use App\Modules\CalendarioFenologico\Models\RegistroFenologico;
 use App\Modules\Meteorologia\Models\DatoMeteorologico;
 use App\Modules\Meteorologia\Models\PrediccionMeteorologica;
@@ -30,20 +31,32 @@ class GeneradorAlertas
 
     /** Regla de los tres dieces para la infección primaria de mildiu. */
     public const MILDIU_LLUVIA_48H_MM = 10.0;
+
     public const MILDIU_TEMP_MEDIA = 10.0;
 
     /** Fases BBCH en que la planta es sensible (brotes verdes / brotes de ~10 cm). */
     public const HELADA_BBCH = [7, 89];
+
     public const MILDIU_BBCH = [12, 89];
 
     /** Sin registro fenológico se usan estos meses como temporada de riesgo. */
     public const HELADA_MESES = [3, 4, 5];
+
     public const MILDIU_MESES = [4, 5, 6, 7];
 
     /** Un registro fenológico más antiguo que esto no describe el estado actual. */
     public const VALIDEZ_REGISTRO_DIAS = 60;
 
     public function __construct(private readonly AlertaService $alertas) {}
+
+    /** Claves ya existentes (clave => true), para no hacer un SELECT por cada candidata. */
+    private ?Collection $clavesExistentes = null;
+
+    private function precargarClaves(Collection $parcelaIds): void
+    {
+        $claves = Alerta::whereIn('parcela_id', $parcelaIds)->whereNotNull('clave')->pluck('clave');
+        $this->clavesExistentes = ($this->clavesExistentes ?? collect())->union($claves->flip()->map(fn () => true));
+    }
 
     /**
      * @return array{fin_plazo: int, helada: int, mildiu: int, prevision_helada: int} alertas nuevas creadas
@@ -81,7 +94,9 @@ class GeneradorAlertas
             return 0;
         }
 
-        $registros = $this->registrosFenologicos($fincas->flatMap->parcelas->pluck('id'), $hoy, $hoy);
+        $parcelaIds = $fincas->flatMap->parcelas->pluck('id');
+        $this->precargarClaves($parcelaIds);
+        $registros = $this->registrosFenologicos($parcelaIds, $hoy, $hoy);
         $creadas = 0;
 
         foreach ($fincas as $finca) {
@@ -102,7 +117,7 @@ class GeneradorAlertas
         $temp = $this->num($prevision->temp_min, 0);
 
         if ($bbch !== null) {
-            if (!$this->enRango($bbch, self::HELADA_BBCH)) {
+            if (! $this->enRango($bbch, self::HELADA_BBCH)) {
                 return 0;
             }
             $nivel = 'critical';
@@ -127,6 +142,7 @@ class GeneradorAlertas
             ->whereBetween('fecha', [$hoy->copy()->subDays(255)->toDateString(), $hoy->toDateString()])
             ->get();
 
+        $this->precargarClaves($tratamientos->pluck('parcela_id')->unique());
         $creadas = 0;
 
         foreach ($tratamientos->groupBy('parcela_id') as $deParcela) {
@@ -134,7 +150,7 @@ class GeneradorAlertas
 
             foreach ($deParcela as $t) {
                 $fin = $t->fechaFinalPlazoSeguridad();
-                if (!$fin || !$fin->isSameDay($hoy)) {
+                if (! $fin || ! $fin->isSameDay($hoy)) {
                     continue;
                 }
 
@@ -178,7 +194,9 @@ class GeneradorAlertas
             ->get()
             ->groupBy('estacion_id');
 
-        $registros = $this->registrosFenologicos($fincas->flatMap->parcelas->pluck('id'), $desde, $hasta);
+        $parcelaIds = $fincas->flatMap->parcelas->pluck('id');
+        $this->precargarClaves($parcelaIds);
+        $registros = $this->registrosFenologicos($parcelaIds, $desde, $hasta);
 
         foreach ($fincas as $finca) {
             $serie = $datos->get($finca->estacion_meteorologica_id, collect())->keyBy(fn ($d) => $d->fecha->toDateString());
@@ -212,7 +230,7 @@ class GeneradorAlertas
         $temp = $this->num($dato->temp_min, 1);
 
         if ($bbch !== null) {
-            if (!$this->enRango($bbch, self::HELADA_BBCH)) {
+            if (! $this->enRango($bbch, self::HELADA_BBCH)) {
                 return 0;
             }
             $nivel = 'critical';
@@ -244,7 +262,7 @@ class GeneradorAlertas
         $detalle = sprintf('%s mm en 48 h, %s °C de media', $this->num($lluvia48h, 1), $this->num($tempMedia, 1));
 
         if ($bbch !== null) {
-            if (!$this->enRango($bbch, self::MILDIU_BBCH)) {
+            if (! $this->enRango($bbch, self::MILDIU_BBCH)) {
                 return 0;
             }
             $mensaje = "Riesgo de infección de mildiu el {$fecha} en {$parcela->nombre} ({$detalle}, fase BBCH {$bbch}): valora un tratamiento preventivo.";
@@ -289,9 +307,16 @@ class GeneradorAlertas
 
     private function crear(Parcela $parcela, string $tipo, string $nivel, string $mensaje, string $clave, ?Finca $finca = null): int
     {
+        if ($this->clavesExistentes?->has($clave)) {
+            return 0;
+        }
+
         $userId = ($finca ?? $parcela->finca)->user_id;
 
-        return $this->alertas->crear($parcela, $userId, $tipo, $nivel, $mensaje, $clave)->wasRecentlyCreated ? 1 : 0;
+        $alerta = $this->alertas->crear($parcela, $userId, $tipo, $nivel, $mensaje, $clave);
+        $this->clavesExistentes?->put($clave, true);
+
+        return $alerta->wasRecentlyCreated ? 1 : 0;
     }
 
     private function num(float|string $valor, int $decimales): string

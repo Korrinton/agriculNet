@@ -1,0 +1,589 @@
+parameters:
+	ignoreErrors:
+		-
+			message: '#^Parameter \#1 \$user of class Illuminate\\Auth\\Events\\Verified constructor expects Illuminate\\Contracts\\Auth\\MustVerifyEmail, App\\Models\\User\|null given\.$#'
+			identifier: argument.type
+			count: 1
+			path: app/Http/Controllers/Auth/VerifyEmailController.php
+
+		-
+			message: '#^Cannot call method lt\(\) on string\.$#'
+			identifier: method.nonObject
+			count: 1
+			path: app/Http/Middleware/ComprobarCuentaActiva.php
+
+		-
+			message: '#^Method App\\Modules\\Admin\\Services\\Tareas\:\:resumen\(\) should return Illuminate\\Support\\Collection\<string, array\> but returns Illuminate\\Support\\Collection\<string, array\{comando\: string, ultima\: App\\Modules\\Admin\\Models\\EjecucionTarea\|null, ejecuciones\: Illuminate\\Database\\Eloquent\\Collection\<int, App\\Modules\\Admin\\Models\\EjecucionTarea\>, ultimoExito\: mixed, nombre\: string, descripcion\: string, horario\: string, opciones\: array\{\}\|array\{''\-\-limite''\: int\}\}\>\.$#'
+			identifier: return.type
+			count: 1
+			path: app/Modules/Admin/Services/Tareas.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$dosis_max_l_ha\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Modules/Alertas/Services/AlertaService.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$nombre\.$#'
+			identifier: property.notFound
+			count: 4
+			path: app/Modules/Alertas/Services/AlertaService.php
+
+		-
+			message: '#^Parameter \#1 \$parcela of method App\\Modules\\Alertas\\Services\\AlertaService\:\:crear\(\) expects App\\Modules\\Vinedo\\Models\\Parcela, Illuminate\\Database\\Eloquent\\Model given\.$#'
+			identifier: argument.type
+			count: 2
+			path: app/Modules/Alertas/Services/AlertaService.php
+
+		-
+			message: '#^Parameter \#2 \$user of method App\\Modules\\Alertas\\Services\\AlertaService\:\:crear\(\) expects App\\Models\\User\|int, Illuminate\\Database\\Eloquent\\Model given\.$#'
+			identifier: argument.type
+			count: 2
+			path: app/Modules/Alertas/Services/AlertaService.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$id\.$#'
+			identifier: property.notFound
+			count: 2
+			path: app/Modules/Alertas/Services/GeneradorAlertas.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$nombre\.$#'
+			identifier: property.notFound
+			count: 4
+			path: app/Modules/Alertas/Services/GeneradorAlertas.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$user_id\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Modules/Alertas/Services/GeneradorAlertas.php
+
+		-
+			message: '#^Call to an undefined method Illuminate\\Database\\Eloquent\\Relations\\HasMany\:\:vina\(\)\.$#'
+			identifier: method.notFound
+			count: 2
+			path: app/Modules/Alertas/Services/GeneradorAlertas.php
+
+		-
+			message: '#^Parameter \#1 \$parcela of method App\\Modules\\Alertas\\Services\\GeneradorAlertas\:\:crear\(\) expects App\\Modules\\Vinedo\\Models\\Parcela, Illuminate\\Database\\Eloquent\\Model\|null given\.$#'
+			identifier: argument.type
+			count: 1
+			path: app/Modules/Alertas/Services/GeneradorAlertas.php
+
+		-
+			message: '#^Parameter \#1 \$parcela of method App\\Modules\\Alertas\\Services\\GeneradorAlertas\:\:evaluarHelada\(\) expects App\\Modules\\Vinedo\\Models\\Parcela, Illuminate\\Database\\Eloquent\\Model given\.$#'
+			identifier: argument.type
+			count: 1
+			path: app/Modules/Alertas/Services/GeneradorAlertas.php
+
+		-
+			message: '#^Parameter \#1 \$parcela of method App\\Modules\\Alertas\\Services\\GeneradorAlertas\:\:evaluarMildiu\(\) expects App\\Modules\\Vinedo\\Models\\Parcela, Illuminate\\Database\\Eloquent\\Model given\.$#'
+			identifier: argument.type
+			count: 1
+			path: app/Modules/Alertas/Services/GeneradorAlertas.php
+
+		-
+			message: '#^Parameter \#1 \$parcela of method App\\Modules\\Alertas\\Services\\GeneradorAlertas\:\:evaluarPrevisionHelada\(\) expects App\\Modules\\Vinedo\\Models\\Parcela, Illuminate\\Database\\Eloquent\\Model given\.$#'
+			identifier: argument.type
+			count: 1
+			path: app/Modules/Alertas/Services/GeneradorAlertas.php
+
+		-
+			message: '#^Using nullsafe property access "\?\-\>precipitacion_mm" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
+			identifier: nullsafe.neverNull
+			count: 1
+			path: app/Modules/Alertas/Services/GeneradorAlertas.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$finca\.$#'
+			identifier: property.notFound
+			count: 2
+			path: app/Modules/Alertas/Services/ResumenAlertasCorreo.php
+
+		-
+			message: '#^Using nullsafe property access "\?\-\>provincia_nombre" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
+			identifier: nullsafe.neverNull
+			count: 1
+			path: app/Modules/Alertas/Services/ResumenAlertasCorreo.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$finca\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Modules/CalendarioFenologico/Http/Controllers/Web/RegistroFenologicoWebController.php
+
+		-
+			message: '#^Call to an undefined method Illuminate\\Database\\Eloquent\\Relations\\HasMany\:\:vina\(\)\.$#'
+			identifier: method.notFound
+			count: 1
+			path: app/Modules/CalendarioFenologico/Http/Controllers/Web/RegistroFenologicoWebController.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$codigo_bbch\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Modules/CalendarioFenologico/Services/CalendarioCampana.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$nombre\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Modules/CalendarioFenologico/Services/CalendarioCampana.php
+
+		-
+			message: '#^Parameter \#1 \$variedad of method App\\Modules\\CalendarioFenologico\\Services\\CalendarioCampana\:\:referencia\(\) expects App\\Modules\\Vinedo\\Models\\Variedad\|null, Illuminate\\Database\\Eloquent\\Model\|null given\.$#'
+			identifier: argument.type
+			count: 1
+			path: app/Modules/CalendarioFenologico/Services/CalendarioCampana.php
+
+		-
+			message: '#^Using nullsafe property access "\?\-\>codigo_bbch" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
+			identifier: nullsafe.neverNull
+			count: 1
+			path: app/Modules/CalendarioFenologico/Services/CalendarioCampana.php
+
+		-
+			message: '#^Using nullsafe property access "\?\-\>nombre" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
+			identifier: nullsafe.neverNull
+			count: 2
+			path: app/Modules/CalendarioFenologico/Services/CalendarioCampana.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$estacion_meteorologica_id\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Modules/CalendarioFenologico/Services/GradosDiaCalculator.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$parcela_id\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Modules/Costes/Http/Controllers/Web/CosteWebController.php
+
+		-
+			message: '#^Parameter \#1 \$finca of method App\\Modules\\Costes\\Http\\Controllers\\Web\\CosteWebController\:\:formulario\(\) expects App\\Modules\\Vinedo\\Models\\Finca, Illuminate\\Database\\Eloquent\\Model\|null given\.$#'
+			identifier: argument.type
+			count: 1
+			path: app/Modules/Costes/Http/Controllers/Web/CosteWebController.php
+
+		-
+			message: '#^Parameter \#2 \$finca of method App\\Modules\\Costes\\Http\\Controllers\\Web\\CosteWebController\:\:storeFinca\(\) expects App\\Modules\\Vinedo\\Models\\Finca, Illuminate\\Database\\Eloquent\\Model\|null given\.$#'
+			identifier: argument.type
+			count: 1
+			path: app/Modules/Costes/Http/Controllers/Web/CosteWebController.php
+
+		-
+			message: '#^Property App\\Modules\\Costes\\Http\\Controllers\\Web\\CosteWebController\:\:\$service is never read, only written\.$#'
+			identifier: property.onlyWritten
+			count: 1
+			path: app/Modules/Costes/Http/Controllers/Web/CosteWebController.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$finca\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Modules/CuadernoDigital/Http/Controllers/Web/CosechaWebController.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Collection\<int, Illuminate\\Database\\Eloquent\\Model\>\|Illuminate\\Database\\Eloquent\\Model\:\:\$superficie_ha\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Modules/CuadernoDigital/Http/Controllers/Web/FertilizacionWebController.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$finca\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Modules/CuadernoDigital/Http/Controllers/Web/FertilizacionWebController.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$superficie_ha\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Modules/CuadernoDigital/Models/Cosecha.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$nombre\.$#'
+			identifier: property.notFound
+			count: 4
+			path: app/Modules/CuadernoDigital/Services/ExportadorCUE.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$numero_registro\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Modules/CuadernoDigital/Services/ExportadorCUE.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$superficie_ha\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Modules/CuadernoDigital/Services/ExportadorCUE.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$variedad\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Modules/CuadernoDigital/Services/ExportadorCUE.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$fuente\.$#'
+			identifier: property.notFound
+			count: 2
+			path: app/Modules/Meteorologia/Http/Controllers/Web/DatoMeteorologicoWebController.php
+
+		-
+			message: '#^Parameter \#1 \$estacion of job class App\\Modules\\Meteorologia\\Jobs\\ImportarDatosMeteorologicos constructor expects App\\Modules\\Meteorologia\\Models\\EstacionMeteorologica in App\\Modules\\Meteorologia\\Jobs\\ImportarDatosMeteorologicos\:\:dispatch\(\), Illuminate\\Database\\Eloquent\\Model\|null given\.$#'
+			identifier: argument.type
+			count: 1
+			path: app/Modules/Meteorologia/Http/Controllers/Web/DatoMeteorologicoWebController.php
+
+		-
+			message: '#^Parameter \#3 \$when of method Illuminate\\Http\\Client\\PendingRequest\<false\>\:\:retry\(\) expects \(callable\(Throwable, Illuminate\\Http\\Client\\PendingRequest, string\|null\)\: bool\)\|null, Closure\(Exception\)\: bool given\.$#'
+			identifier: argument.type
+			count: 2
+			path: app/Modules/Meteorologia/Services/AemetClient.php
+
+		-
+			message: '#^Access to an undefined property App\\Modules\\Meteorologia\\Models\\EstacionMeteorologica\:\:\$distancia_km\.$#'
+			identifier: property.notFound
+			count: 3
+			path: app/Modules/Meteorologia/Services/EstacionesCercanas.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Collection\<int, Illuminate\\Database\\Eloquent\\Model\>\|Illuminate\\Database\\Eloquent\\Model\:\:\$superficie_ha\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Modules/Riegos/Http/Controllers/Web/RiegoWebController.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$finca\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Modules/Riegos/Http/Controllers/Web/RiegoWebController.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$id\.$#'
+			identifier: property.notFound
+			count: 2
+			path: app/Modules/Riegos/Http/Controllers/Web/RiegoWebController.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$superficie_ha\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Modules/Riegos/Http/Controllers/Web/RiegoWebController.php
+
+		-
+			message: '#^Call to an undefined method Illuminate\\Database\\Eloquent\\Relations\\HasMany\:\:regable\(\)\.$#'
+			identifier: method.notFound
+			count: 1
+			path: app/Modules/Riegos/Http/Controllers/Web/RiegoWebController.php
+
+		-
+			message: '#^Access to an undefined property App\\Modules\\Tratamientos\\Models\\ProductoFitosanitario\:\:\$precio\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Modules/Tratamientos/Http/Controllers/Web/ProductoFitosanitarioWebController.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$cultivo\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Modules/Tratamientos/Http/Controllers/Web/TratamientoWebController.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$finca\.$#'
+			identifier: property.notFound
+			count: 4
+			path: app/Modules/Tratamientos/Http/Controllers/Web/TratamientoWebController.php
+
+		-
+			message: '#^Parameter \#1 \$parcelas of method App\\Modules\\Tratamientos\\Services\\TratamientoService\:\:registrarEnParcelas\(\) expects Illuminate\\Support\\Collection\<int, App\\Modules\\Vinedo\\Models\\Parcela\>, Illuminate\\Database\\Eloquent\\Collection\<int, Illuminate\\Database\\Eloquent\\Model\> given\.$#'
+			identifier: argument.type
+			count: 1
+			path: app/Modules/Tratamientos/Http/Controllers/Web/TratamientoWebController.php
+
+		-
+			message: '#^Parameter \#2 \$default of function old expects array\|Illuminate\\Database\\Eloquent\\Model\|string\|null, int\<0, max\> given\.$#'
+			identifier: argument.type
+			count: 1
+			path: app/Modules/Tratamientos/Http/Controllers/Web/TratamientoWebController.php
+
+		-
+			message: '#^Parameter \#2 \$default of function old expects array\|Illuminate\\Database\\Eloquent\\Model\|string\|null, int\<min, \-1\>\|int\<1, max\>\|null given\.$#'
+			identifier: argument.type
+			count: 1
+			path: app/Modules/Tratamientos/Http/Controllers/Web/TratamientoWebController.php
+
+		-
+			message: '#^Parameter \#2 \$finca of method App\\Modules\\Tratamientos\\Http\\Controllers\\Web\\TratamientoWebController\:\:datosFormulario\(\) expects App\\Modules\\Vinedo\\Models\\Finca, Illuminate\\Database\\Eloquent\\Model\|null given\.$#'
+			identifier: argument.type
+			count: 1
+			path: app/Modules/Tratamientos/Http/Controllers/Web/TratamientoWebController.php
+
+		-
+			message: '#^Parameter \#3 \$parcelas of method App\\Modules\\Tratamientos\\Http\\Controllers\\Web\\TratamientoWebController\:\:datosFormulario\(\) expects Illuminate\\Support\\Collection\<int, App\\Modules\\Vinedo\\Models\\Parcela\>, Illuminate\\Database\\Eloquent\\Collection\<int, Illuminate\\Database\\Eloquent\\Model\> given\.$#'
+			identifier: argument.type
+			count: 1
+			path: app/Modules/Tratamientos/Http/Controllers/Web/TratamientoWebController.php
+
+		-
+			message: '#^Parameter \#3 \$parcelas of method App\\Modules\\Tratamientos\\Http\\Controllers\\Web\\TratamientoWebController\:\:datosFormulario\(\) expects Illuminate\\Support\\Collection\<int, App\\Modules\\Vinedo\\Models\\Parcela\>, Illuminate\\Support\\Collection\<int, Illuminate\\Database\\Eloquent\\Model\|null\> given\.$#'
+			identifier: argument.type
+			count: 1
+			path: app/Modules/Tratamientos/Http/Controllers/Web/TratamientoWebController.php
+
+		-
+			message: '#^Call to an undefined method Illuminate\\Database\\Eloquent\\Builder\:\:paraCultivos\(\)\.$#'
+			identifier: method.notFound
+			count: 1
+			path: app/Modules/Tratamientos/Models/ProductoFitosanitario.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$plazo_seguridad_dias\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Modules/Tratamientos/Models/Tratamiento.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$superficie_ha\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Modules/Tratamientos/Models/Tratamiento.php
+
+		-
+			message: '#^Parameter \#1 \$parcela of static method App\\Modules\\Tratamientos\\Services\\ImportadorFitosanitarios\:\:codigoEppoDe\(\) expects App\\Modules\\Vinedo\\Models\\Parcela, Illuminate\\Database\\Eloquent\\Model given\.$#'
+			identifier: argument.type
+			count: 1
+			path: app/Modules/Tratamientos/Models/Tratamiento.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$nombre\.$#'
+			identifier: property.notFound
+			count: 2
+			path: app/Modules/Tratamientos/Services/ImportadorFitosanitarios.php
+
+		-
+			message: '#^Parameter \#3 \$when of method Illuminate\\Http\\Client\\PendingRequest\<false\>\:\:retry\(\) expects \(callable\(Throwable, Illuminate\\Http\\Client\\PendingRequest, string\|null\)\: bool\)\|null, Closure\(Exception\)\: bool given\.$#'
+			identifier: argument.type
+			count: 1
+			path: app/Modules/Tratamientos/Services/ImportadorFitosanitarios.php
+
+		-
+			message: '#^Parameter \#2 \$callback of function array_filter expects \(callable\(array\{cultivos\: list\<string\>, dias\: int\|null\}\)\: bool\)\|null, Closure\(mixed\)\: array\<int\<0, max\>, string\> given\.$#'
+			identifier: argument.type
+			count: 1
+			path: app/Modules/Tratamientos/Services/LectorFichasFitosanitarios.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$nombre\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Modules/Tratamientos/Services/TratamientoService.php
+
+		-
+			message: '#^Parameter \#1 \$parcela of static method App\\Modules\\Tratamientos\\Services\\ImportadorFitosanitarios\:\:codigoEppoDe\(\) expects App\\Modules\\Vinedo\\Models\\Parcela, Illuminate\\Database\\Eloquent\\Model\|null given\.$#'
+			identifier: argument.type
+			count: 1
+			path: app/Modules/Tratamientos/Services/TratamientoService.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$id\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Modules/Vinedo/Http/Controllers/Web/FincaWebController.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$parcela_sigpac\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Modules/Vinedo/Http/Controllers/Web/FincaWebController.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$poligono\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Modules/Vinedo/Http/Controllers/Web/FincaWebController.php
+
+		-
+			message: '#^Parameter \#1 \$callback of method Illuminate\\Database\\Eloquent\\Collection\<int,Illuminate\\Database\\Eloquent\\Model\>\:\:map\(\) contains unresolvable type\.$#'
+			identifier: argument.unresolvableType
+			count: 1
+			path: app/Modules/Vinedo/Http/Controllers/Web/FincaWebController.php
+
+		-
+			message: '#^Parameter \#1 \$estacion of method App\\Modules\\Meteorologia\\Services\\ImportadorMeteorologico\:\:ultimosDias\(\) expects App\\Modules\\Meteorologia\\Models\\EstacionMeteorologica, Illuminate\\Database\\Eloquent\\Model given\.$#'
+			identifier: argument.type
+			count: 1
+			path: app/Modules/Vinedo/Http/Controllers/Web/FincaWebController.php
+
+		-
+			message: '#^Parameter \#1 \$parcela of method App\\Modules\\Vinedo\\Services\\SigpacService\:\:getSigpacUrl\(\) expects App\\Modules\\Vinedo\\Models\\Parcela, Illuminate\\Database\\Eloquent\\Model given\.$#'
+			identifier: argument.type
+			count: 1
+			path: app/Modules/Vinedo/Http/Controllers/Web/FincaWebController.php
+
+		-
+			message: '#^Parameter \#1 \$parcela of method App\\Modules\\Vinedo\\Services\\SigpacService\:\:tieneReferenciaSigpac\(\) expects App\\Modules\\Vinedo\\Models\\Parcela, Illuminate\\Database\\Eloquent\\Model given\.$#'
+			identifier: argument.type
+			count: 1
+			path: app/Modules/Vinedo/Http/Controllers/Web/FincaWebController.php
+
+		-
+			message: '#^Parameter \#2 \$estacion of method App\\Modules\\Meteorologia\\Services\\EstacionesCercanas\:\:distanciaA\(\) expects App\\Modules\\Meteorologia\\Models\\EstacionMeteorologica\|null, Illuminate\\Database\\Eloquent\\Model\|null given\.$#'
+			identifier: argument.type
+			count: 1
+			path: app/Modules/Vinedo/Http/Controllers/Web/FincaWebController.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$municipio_cod\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Modules/Vinedo/Models/Parcela.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$provincia_cod\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Modules/Vinedo/Models/Parcela.php
+
+		-
+			message: '#^Call to an undefined method Illuminate\\Database\\Eloquent\\Model\:\:olvidarCoordenadas\(\)\.$#'
+			identifier: method.notFound
+			count: 3
+			path: app/Modules/Vinedo/Models/Parcela.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$municipio_cod\.$#'
+			identifier: property.notFound
+			count: 3
+			path: app/Modules/Vinedo/Services/SigpacService.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$provincia_cod\.$#'
+			identifier: property.notFound
+			count: 3
+			path: app/Modules/Vinedo/Services/SigpacService.php
+
+		-
+			message: '#^Parameter \#1 \$callback of method Illuminate\\Support\\Collection\<int,Illuminate\\Database\\Eloquent\\Model\>\:\:each\(\) expects callable\(Illuminate\\Database\\Eloquent\\Model, int\)\: mixed, Closure\(App\\Modules\\Vinedo\\Models\\Parcela\)\: App\\Modules\\Vinedo\\Models\\Parcela given\.$#'
+			identifier: argument.type
+			count: 1
+			path: app/Modules/Vinedo/Services/SigpacService.php
+
+		-
+			message: '#^Parameter \#1 \$callback of method Illuminate\\Support\\Collection\<int,Illuminate\\Database\\Eloquent\\Model\>\:\:filter\(\) expects \(callable\(Illuminate\\Database\\Eloquent\\Model, int\)\: bool\)\|null, Closure\(App\\Modules\\Vinedo\\Models\\Parcela\)\: bool given\.$#'
+			identifier: argument.type
+			count: 1
+			path: app/Modules/Vinedo/Services/SigpacService.php
+
+		-
+			message: '#^Parameter \#1 \$parcela of method App\\Modules\\Vinedo\\Services\\SigpacService\:\:getRecintoGeoJson\(\) expects App\\Modules\\Vinedo\\Models\\Parcela, Illuminate\\Database\\Eloquent\\Model given\.$#'
+			identifier: argument.type
+			count: 1
+			path: app/Modules/Vinedo/Services/SigpacService.php
+
+		-
+			message: '#^Parameter \#1 \$string of function str_pad expects string, int given\.$#'
+			identifier: argument.type
+			count: 2
+			path: app/Modules/Vinedo/Services/SigpacService.php
+
+		-
+			message: '#^Method App\\Modules\\Vinedo\\Services\\VinedoService\:\:crearParcela\(\) should return App\\Modules\\Vinedo\\Models\\Parcela but returns Illuminate\\Database\\Eloquent\\Model\.$#'
+			identifier: return.type
+			count: 1
+			path: app/Modules/Vinedo/Services/VinedoService.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$codigo_bbch\.$#'
+			identifier: property.notFound
+			count: 2
+			path: app/Services/PanelInicio.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$etiqueta\.$#'
+			identifier: property.notFound
+			count: 4
+			path: app/Services/PanelInicio.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$id\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Services/PanelInicio.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$nombre\.$#'
+			identifier: property.notFound
+			count: 3
+			path: app/Services/PanelInicio.php
+
+		-
+			message: '#^Call to an undefined method Illuminate\\Database\\Eloquent\\Model\:\:esVina\(\)\.$#'
+			identifier: method.notFound
+			count: 1
+			path: app/Services/PanelInicio.php
+
+		-
+			message: '#^Call to an undefined method Illuminate\\Support\\HigherOrderCollectionProxy\<string, Illuminate\\Database\\Eloquent\\Model, Illuminate\\Database\\Eloquent\\Collection\<int, Illuminate\\Database\\Eloquent\\Model\>\>\:\:esVina\(\)\.$#'
+			identifier: method.notFound
+			count: 1
+			path: app/Services/PanelInicio.php
+
+		-
+			message: '#^Parameter \#1 \$callback of method Illuminate\\Database\\Eloquent\\Collection\<int,App\\Modules\\CalendarioFenologico\\Models\\RegistroFenologico\>\:\:map\(\) contains unresolvable type\.$#'
+			identifier: argument.unresolvableType
+			count: 1
+			path: app/Services/PanelInicio.php
+
+		-
+			message: '#^Parameter \#1 \$callback of method Illuminate\\Database\\Eloquent\\Collection\<int,App\\Modules\\Costes\\Models\\Coste\>\:\:map\(\) contains unresolvable type\.$#'
+			identifier: argument.unresolvableType
+			count: 1
+			path: app/Services/PanelInicio.php
+
+		-
+			message: '#^Parameter \#1 \$callback of method Illuminate\\Database\\Eloquent\\Collection\<int,App\\Modules\\Riegos\\Models\\Riego\>\:\:map\(\) contains unresolvable type\.$#'
+			identifier: argument.unresolvableType
+			count: 1
+			path: app/Services/PanelInicio.php
+
+		-
+			message: '#^Parameter \#1 \$callback of method Illuminate\\Database\\Eloquent\\Collection\<int,App\\Modules\\Tratamientos\\Models\\Tratamiento\>\:\:map\(\) contains unresolvable type\.$#'
+			identifier: argument.unresolvableType
+			count: 1
+			path: app/Services/PanelInicio.php
+
+		-
+			message: '#^Parameter \#1 \$callback of method Illuminate\\Support\\Collection\<int,array\<string, mixed\>\>\:\:sortByDesc\(\) contains unresolvable type\.$#'
+			identifier: argument.unresolvableType
+			count: 1
+			path: app/Services/PanelInicio.php
+
+		-
+			message: '#^Parameter \#1 \$parcela of method App\\Modules\\CalendarioFenologico\\Services\\GradosDiaCalculator\:\:serieCampana\(\) expects App\\Modules\\Vinedo\\Models\\Parcela, Illuminate\\Database\\Eloquent\\Model given\.$#'
+			identifier: argument.type
+			count: 1
+			path: app/Services/PanelInicio.php
+
+		-
+			message: '#^Parameter \#1 \$source of method Illuminate\\Support\\Collection\<int,array\<string, mixed\>\>\:\:concat\(\) contains unresolvable type\.$#'
+			identifier: argument.unresolvableType
+			count: 3
+			path: app/Services/PanelInicio.php
+
+		-
+			message: '#^Using nullsafe property access "\?\-\>etiqueta" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
+			identifier: nullsafe.neverNull
+			count: 1
+			path: app/Services/PanelInicio.php
+
+		-
+			message: '#^Using nullsafe property access "\?\-\>nombre" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
+			identifier: nullsafe.neverNull
+			count: 2
+			path: app/Services/PanelInicio.php

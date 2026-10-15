@@ -3,7 +3,6 @@
 namespace App\Modules\CuadernoDigital\Http\Controllers\Web;
 
 use App\Http\Controllers\Controller;
-use App\Modules\CuadernoDigital\Http\Controllers\CuadernoDigitalController;
 use App\Modules\CuadernoDigital\Services\CuadernoCampana;
 use App\Modules\CuadernoDigital\Services\ExportadorCUE;
 use App\Modules\Vinedo\Models\Finca;
@@ -29,9 +28,9 @@ class CuadernoWebController extends Controller
         $anio = in_array($anio, $campanas, true) ? $anio : $actual;
 
         return view('cuaderno.index', [
-            'fincas'   => $fincas,
+            'fincas' => $fincas,
             'campanas' => $campanas,
-            'datos'    => $this->cuaderno->datos($finca, $anio),
+            'datos' => $this->cuaderno->datos($finca, $anio),
         ]);
     }
 
@@ -46,9 +45,6 @@ class CuadernoWebController extends Controller
     {
         $this->authorize('view', $finca);
 
-        return response($exportador->generar($this->cuaderno->datos($finca, $anio)), 200, [
-            'Content-Type'        => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-            'Content-Disposition' => 'attachment; filename="' . CuadernoDigitalController::nombreFichero($finca, $anio) . '"',
-        ]);
+        return $exportador->descarga($this->cuaderno->datos($finca, $anio));
     }
 }

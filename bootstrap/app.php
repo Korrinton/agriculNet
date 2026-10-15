@@ -17,6 +17,8 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withMiddleware(function (Middleware $middleware): void {
         // Permite que el frontend del propio dominio use /api con la sesión web
         $middleware->statefulApi();
+        // Límite de peticiones en toda la API (60/min por usuario o IP, el RateLimiter 'api' de Laravel)
+        $middleware->throttleApi();
 
         $middleware->web(append: [ComprobarCuentaActiva::class, ContentSecurityPolicy::class]);
         $middleware->api(append: [ComprobarCuentaActiva::class]);

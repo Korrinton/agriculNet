@@ -5,6 +5,7 @@ namespace App\Modules\Vinedo\Models;
 use App\Models\User;
 use App\Modules\Costes\Models\Coste;
 use App\Modules\Meteorologia\Models\EstacionMeteorologica;
+use App\Support\Nif;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -28,15 +29,15 @@ class Finca extends Model
     protected $casts = [
         'provincia_cod' => 'integer',
         'municipio_cod' => 'integer',
-        'latitud'       => 'float',
-        'longitud'      => 'float',
+        'latitud' => 'float',
+        'longitud' => 'float',
     ];
 
     protected static function booted(): void
     {
         // Si cambia el municipio, la ubicación calculada deja de valer
         static::updating(function (Finca $finca) {
-            if ($finca->isDirty(['provincia_cod', 'municipio_cod']) && !$finca->isDirty(['latitud', 'longitud'])) {
+            if ($finca->isDirty(['provincia_cod', 'municipio_cod']) && ! $finca->isDirty(['latitud', 'longitud'])) {
                 $finca->latitud = $finca->longitud = $finca->coordenadas_origen = null;
             }
         });
@@ -44,7 +45,7 @@ class Finca extends Model
 
     public function setTitularNifAttribute(?string $valor): void
     {
-        $this->attributes['titular_nif'] = $valor !== null ? strtoupper(str_replace([' ', '-'], '', trim($valor))) : null;
+        $this->attributes['titular_nif'] = Nif::normalizar($valor);
     }
 
     public function tieneCoordenadas(): bool
@@ -58,9 +59,9 @@ class Finca extends Model
     }
 
     private const PROVINCIAS = [
-        1  => 'Álava',         2  => 'Albacete',    3  => 'Alicante',
-        4  => 'Almería',       5  => 'Ávila',        6  => 'Badajoz',
-        7  => 'Baleares',      8  => 'Barcelona',    9  => 'Burgos',
+        1 => 'Álava',         2 => 'Albacete',    3 => 'Alicante',
+        4 => 'Almería',       5 => 'Ávila',        6 => 'Badajoz',
+        7 => 'Baleares',      8 => 'Barcelona',    9 => 'Burgos',
         10 => 'Cáceres',       11 => 'Cádiz',        12 => 'Castellón',
         13 => 'Ciudad Real',   14 => 'Córdoba',      15 => 'La Coruña',
         16 => 'Cuenca',        17 => 'Girona',       18 => 'Granada',
@@ -70,7 +71,7 @@ class Finca extends Model
         28 => 'Madrid',        29 => 'Málaga',       30 => 'Murcia',
         31 => 'Navarra',       32 => 'Ourense',      33 => 'Asturias',
         34 => 'Palencia',      35 => 'Las Palmas',   36 => 'Pontevedra',
-        37 => 'Salamanca',     38 => 'S.C. Tenerife',39 => 'Cantabria',
+        37 => 'Salamanca',     38 => 'S.C. Tenerife', 39 => 'Cantabria',
         40 => 'Segovia',       41 => 'Sevilla',      42 => 'Soria',
         43 => 'Tarragona',     44 => 'Teruel',       45 => 'Toledo',
         46 => 'Valencia',      47 => 'Valladolid',   48 => 'Vizcaya',
@@ -90,7 +91,7 @@ class Finca extends Model
     /** Código INE de municipio de 5 dígitos (PPMMM) que usa AEMET para sus predicciones. */
     public function getCodigoIneAttribute(): ?string
     {
-        if (!$this->provincia_cod || !$this->municipio_cod) {
+        if (! $this->provincia_cod || ! $this->municipio_cod) {
             return null;
         }
 

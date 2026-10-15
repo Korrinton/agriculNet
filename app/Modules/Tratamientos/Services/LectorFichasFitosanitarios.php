@@ -23,22 +23,22 @@ class LectorFichasFitosanitarios
      * Si ninguno de los propios figura, se usan los genéricos (p. ej. «cereales» para el trigo).
      */
     private const NOMBRES = [
-        'vid'       => [['vid', 'vid de vinificacion', 'vinedo', 'uva de vinificacion'], []],
-        'olivo'     => [['olivo', 'olivo de almazara', 'olivo de verdeo', 'olivar'], []],
-        'pistacho'  => [['pistachero', 'pistacho'], ['frutales de cascara', 'frutos de cascara']],
-        'trigo'     => [['trigo', 'trigo blando', 'trigo duro'], self::CEREALES],
-        'cebada'    => [['cebada'], self::CEREALES],
-        'avena'     => [['avena'], self::CEREALES],
-        'centeno'   => [['centeno'], self::CEREALES],
+        'vid' => [['vid', 'vid de vinificacion', 'vinedo', 'uva de vinificacion'], []],
+        'olivo' => [['olivo', 'olivo de almazara', 'olivo de verdeo', 'olivar'], []],
+        'pistacho' => [['pistachero', 'pistacho'], ['frutales de cascara', 'frutos de cascara']],
+        'trigo' => [['trigo', 'trigo blando', 'trigo duro'], self::CEREALES],
+        'cebada' => [['cebada'], self::CEREALES],
+        'avena' => [['avena'], self::CEREALES],
+        'centeno' => [['centeno'], self::CEREALES],
         'triticale' => [['triticale'], self::CEREALES],
-        'veza'      => [['veza'], ['leguminosas forrajeras', 'leguminosas']],
-        'yero'      => [['yero', 'yeros'], ['leguminosas forrajeras', 'leguminosas']],
-        'guisante'  => [['guisante', 'guisante proteaginoso', 'guisante para grano', 'guisante proteaginoso /forrajero', 'guisante proteaginoso / forrajero'], ['leguminosas de grano', 'leguminosas']],
-        'garbanzo'  => [['garbanzo'], ['leguminosas de grano', 'leguminosas']],
-        'lenteja'   => [['lenteja'], ['leguminosas de grano', 'leguminosas']],
-        'girasol'   => [['girasol'], ['oleaginosas']],
-        'colza'     => [['colza'], ['oleaginosas', 'cruciferas oleaginosas']],
-        'barbecho'  => [['barbecho', 'barbechos'], []],
+        'veza' => [['veza'], ['leguminosas forrajeras', 'leguminosas']],
+        'yero' => [['yero', 'yeros'], ['leguminosas forrajeras', 'leguminosas']],
+        'guisante' => [['guisante', 'guisante proteaginoso', 'guisante para grano', 'guisante proteaginoso /forrajero', 'guisante proteaginoso / forrajero'], ['leguminosas de grano', 'leguminosas']],
+        'garbanzo' => [['garbanzo'], ['leguminosas de grano', 'leguminosas']],
+        'lenteja' => [['lenteja'], ['leguminosas de grano', 'leguminosas']],
+        'girasol' => [['girasol'], ['oleaginosas']],
+        'colza' => [['colza'], ['oleaginosas', 'cruciferas oleaginosas']],
+        'barbecho' => [['barbecho', 'barbechos'], []],
     ];
 
     private const CEREALES = ['cereales', 'cereales de invierno', 'cereales de invierno / primavera', 'cereales de invierno/primavera'];
@@ -46,16 +46,19 @@ class LectorFichasFitosanitarios
     /** Descarga la ficha y guarda sus plazos de seguridad; devuelve cuántos cultivos de la app trae. */
     public function leer(ProductoFitosanitario $producto): int
     {
-        if (!$producto->mapa_id) {
+        if (! $producto->mapa_id) {
             throw new RuntimeException("{$producto->nombre} no es un producto del registro.");
         }
 
-        $respuesta = Http::timeout(60)->retry(2, 3000)->get($producto->urlFichaMapa());
-        if (!str_starts_with($respuesta->body(), '%PDF')) {
+        $respuesta = Http::timeout(60)->connectTimeout(10)->retry(2, 3000, throw: false)->get($producto->urlFichaMapa());
+        if ($respuesta->failed()) {
+            throw new RuntimeException("La ficha de {$producto->nombre} respondió HTTP {$respuesta->status()}.");
+        }
+        if (! str_starts_with($respuesta->body(), '%PDF')) {
             throw new RuntimeException("La ficha de {$producto->nombre} no es un PDF.");
         }
 
-        $plazos = self::plazosPorCultivo((new Parser())->parseContent($respuesta->body())->getText());
+        $plazos = self::plazosPorCultivo((new Parser)->parseContent($respuesta->body())->getText());
 
         DB::transaction(function () use ($producto, $plazos) {
             PlazoSeguridadProducto::where('producto_id', $producto->id)->delete();
@@ -102,7 +105,7 @@ class LectorFichasFitosanitarios
      */
     public static function filasPlazos(string $texto): array
     {
-        if (!preg_match('/USO\s+P\.S\.\s*\(d[ií]as\)(.*?)Plazos de Seguridad/su', $texto, $m)) {
+        if (! preg_match('/USO\s+P\.S\.\s*\(d[ií]as\)(.*?)Plazos de Seguridad/su', $texto, $m)) {
             return [];
         }
 
@@ -113,14 +116,14 @@ class LectorFichasFitosanitarios
             if (str_contains($linea, "\t")) {
                 // «cultivos<TAB>plazo»: el plazo va tras el último tabulador
                 $corte = strrpos($linea, "\t");
-                $filas[] = self::fila($acumulado . ' ' . substr($linea, 0, $corte), substr($linea, $corte + 1));
+                $filas[] = self::fila($acumulado.' '.substr($linea, 0, $corte), substr($linea, $corte + 1));
                 $acumulado = '';
             } elseif (preg_match('/^\s*(\d.*|N\.?\s*[PA]\.?|NO PROCEDE|NO APLICA|-)\s*$/iu', $linea) && trim($acumulado) !== '') {
                 // La lista de cultivos ocupó varias líneas y el plazo va solo en la última
                 $filas[] = self::fila($acumulado, $linea);
                 $acumulado = '';
             } else {
-                $acumulado .= ' ' . $linea;
+                $acumulado .= ' '.$linea;
             }
         }
 
@@ -140,7 +143,7 @@ class LectorFichasFitosanitarios
      */
     private static function dias(string $valor): ?int
     {
-        if (!preg_match_all('/(\d+)\s*(HORAS?)?/iu', $valor, $m, PREG_SET_ORDER)) {
+        if (! preg_match_all('/(\d+)\s*(HORAS?)?/iu', $valor, $m, PREG_SET_ORDER)) {
             return null;   // no procede
         }
 

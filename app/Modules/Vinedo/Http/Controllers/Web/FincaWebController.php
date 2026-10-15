@@ -5,38 +5,15 @@ namespace App\Modules\Vinedo\Http\Controllers\Web;
 use App\Http\Controllers\Controller;
 use App\Modules\Meteorologia\Services\EstacionesCercanas;
 use App\Modules\Meteorologia\Services\ImportadorMeteorologico;
+use App\Modules\Vinedo\Http\Requests\CrearFincaRequest;
+use App\Modules\Vinedo\Http\Requests\GuardarFincaRequest;
 use App\Modules\Vinedo\Models\Finca;
 use App\Modules\Vinedo\Models\Parcela;
 use App\Modules\Vinedo\Models\Variedad;
-use App\Modules\Vinedo\Rules\VariedadDelCultivo;
 use App\Modules\Vinedo\Services\SigpacService;
-use Illuminate\Http\Request;
-use Illuminate\Validation\Rule;
 
 class FincaWebController extends Controller
 {
-    private array $fincaRules = [
-        'provincia_cod' => 'required|integer|min:1|max:52',
-        'municipio_cod' => 'required|integer|min:1|max:999',
-        'paraje'        => 'nullable|string|max:255',
-        // Titular de la explotación, para el cuaderno de explotación
-        'titular_nombre' => 'nullable|string|max:255',
-        'titular_nif'    => 'nullable|string|max:20',
-        'rea_numero'     => 'nullable|string|max:50',
-    ];
-
-    private array $parcelaRules = [
-        'parcelas'                       => 'required|array|min:1',
-        'parcelas.*.nombre'              => 'nullable|string|max:255',
-        'parcelas.*.superficie_ha'       => 'required|numeric|min:0.0001',
-        'parcelas.*.año_plantacion'      => 'nullable|integer|min:1900|max:2099',
-        'parcelas.*.sistema_conduccion'  => 'nullable|string|max:100',
-        'parcelas.*.agregado'            => 'nullable|integer|min:0|max:99',
-        'parcelas.*.poligono'            => 'nullable|integer|min:1',
-        'parcelas.*.parcela_sigpac'      => 'nullable|integer|min:1',
-        'parcelas.*.recinto'             => 'nullable|integer|min:1',
-    ];
-
     public function index()
     {
         $fincas = Finca::where('user_id', auth()->id())
@@ -57,42 +34,32 @@ class FincaWebController extends Controller
         ]);
     }
 
-    public function store(Request $request)
+    public function store(CrearFincaRequest $request)
     {
-        // Cada parcela valida su variedad contra el cultivo de su propio uso
-        $porParcela = [];
-        foreach (array_keys((array) $request->input('parcelas', [])) as $i) {
-            $porParcela["parcelas.{$i}.uso"] = ['required', Rule::in(Parcela::usos())];
-            $porParcela["parcelas.{$i}.variedad_id"] = [
-                'nullable', 'integer', 'exists:variedades,id',
-                new VariedadDelCultivo($request->input("parcelas.{$i}.uso")),
-            ];
-        }
-
-        $validated = $request->validate(array_merge($this->fincaRules, $this->parcelaRules, $porParcela));
+        $validated = $request->validated();
 
         $finca = Finca::create([
-            'user_id'       => auth()->id(),
+            'user_id' => auth()->id(),
             'provincia_cod' => $validated['provincia_cod'],
             'municipio_cod' => $validated['municipio_cod'],
-            'paraje'        => $validated['paraje'] ?? null,
+            'paraje' => $validated['paraje'] ?? null,
             'titular_nombre' => $validated['titular_nombre'] ?? null,
-            'titular_nif'    => $validated['titular_nif'] ?? null,
-            'rea_numero'     => $validated['rea_numero'] ?? null,
+            'titular_nif' => $validated['titular_nif'] ?? null,
+            'rea_numero' => $validated['rea_numero'] ?? null,
         ]);
 
         foreach ($validated['parcelas'] as $i => $p) {
             $finca->parcelas()->create([
-                'nombre'             => ($p['nombre'] ?? null) ?: (isset($p['parcela_sigpac']) ? 'Parcela ' . $p['parcela_sigpac'] : 'Parcela ' . ($i + 1)),
-                'uso'                => $p['uso'],
-                'superficie_ha'      => $p['superficie_ha'],
-                'variedad_id'        => $p['variedad_id'] ?? null,
-                'año_plantacion'     => $p['año_plantacion'] ?? null,
+                'nombre' => Parcela::nombrePorDefecto($p['nombre'] ?? null, $p['parcela_sigpac'] ?? null, 'Parcela '.($i + 1)),
+                'uso' => $p['uso'],
+                'superficie_ha' => $p['superficie_ha'],
+                'variedad_id' => $p['variedad_id'] ?? null,
+                'año_plantacion' => $p['año_plantacion'] ?? null,
                 'sistema_conduccion' => $p['sistema_conduccion'] ?? null,
-                'agregado'           => $p['agregado'] ?? 0,
-                'poligono'           => $p['poligono'] ?? null,
-                'parcela_sigpac'     => $p['parcela_sigpac'] ?? null,
-                'recinto'            => $p['recinto'] ?? null,
+                'agregado' => $p['agregado'] ?? 0,
+                'poligono' => $p['poligono'] ?? null,
+                'parcela_sigpac' => $p['parcela_sigpac'] ?? null,
+                'recinto' => $p['recinto'] ?? null,
             ]);
         }
 
@@ -106,11 +73,11 @@ class FincaWebController extends Controller
         $finca->load(['parcelas.variedad', 'parcelas.finca', 'estacion']);
 
         $parcelasConSigpac = $finca->parcelas
-            ->filter(fn($p) => $sigpac->tieneReferenciaSigpac($p))
-            ->map(fn($p) => [
-                'id'         => $p->id,
-                'nombre'     => 'Pol. ' . $p->poligono . ' / Par. ' . $p->parcela_sigpac,
-                'sigpacUrl'  => route('vinedo.parcelas.sigpac', $p),
+            ->filter(fn ($p) => $sigpac->tieneReferenciaSigpac($p))
+            ->map(fn ($p) => [
+                'id' => $p->id,
+                'nombre' => 'Pol. '.$p->poligono.' / Par. '.$p->parcela_sigpac,
+                'sigpacUrl' => route('vinedo.parcelas.sigpac', $p),
                 'externoUrl' => $sigpac->getSigpacUrl($p),
             ])->values();
 
@@ -123,14 +90,16 @@ class FincaWebController extends Controller
         $estacionesAemet = $finca->estacion ? collect() : $cercanas->para($finca);
 
         // Gastos del año: los generales de la finca (sin parcela) y los imputados a sus parcelas
-        $costesAño = $finca->costes()->whereYear('fecha', now()->year)->with('categoria')->latest('fecha')->latest('id')->get();
+        $costesAño = $finca->costes()
+            ->whereBetween('fecha', [now()->startOfYear()->toDateString(), now()->endOfYear()->toDateString()])
+            ->with('categoria')->latest('fecha')->latest('id')->get();
 
         return view('vinedo.fincas.show', [
-            'finca'             => $finca,
-            'costesAño'         => $costesAño,
+            'finca' => $finca,
+            'costesAño' => $costesAño,
             'parcelasConSigpac' => $parcelasConSigpac,
-            'datosMeteoro'      => $datosMeteoro,
-            'estacionesAemet'   => $estacionesAemet,
+            'datosMeteoro' => $datosMeteoro,
+            'estacionesAemet' => $estacionesAemet,
             'distanciaEstacion' => $cercanas->distanciaA($finca, $finca->estacion),
         ]);
     }
@@ -141,17 +110,16 @@ class FincaWebController extends Controller
         $finca->load('parcelas.variedad');
 
         return view('vinedo.fincas.edit', [
-            'finca'      => $finca,
+            'finca' => $finca,
             'provincias' => Finca::getProvincias(),
         ]);
     }
 
-    public function update(Request $request, Finca $finca)
+    public function update(GuardarFincaRequest $request, Finca $finca)
     {
         $this->authorize('update', $finca);
 
-        $validated = $request->validate($this->fincaRules);
-        $finca->update($validated);
+        $finca->update($request->validated());
 
         return redirect()->route('vinedo.fincas.show', $finca)
             ->with('success', 'Finca actualizada correctamente.');
